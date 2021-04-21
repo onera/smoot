@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="smoot",
-    version="0.0.1",
+    version="0.0.2",
     author="Nathalie Bartoli, Rémi Lafage",
     description="Surrogate based multi-objective optimization tool",
     long_description=long_description,
