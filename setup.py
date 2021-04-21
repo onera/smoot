@@ -17,8 +17,7 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "smoot"},
-    packages=setuptools.find_packages(where="smoot"),
+    packages=["smoot"],
     python_requires=">=3.6",
     install_requires=["smt", "pymoo"],
 )
