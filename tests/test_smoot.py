@@ -76,7 +76,7 @@ class Test(TestCase):
 
         gd = get_performance_indicator("gd", res_exact.F)
         dist = gd.calc(mo.result.F)
-        self.assertLess(dist, 1.5)
+        self.assertLess(dist, 2.0)
 
 
 if __name__ == "__main__":
