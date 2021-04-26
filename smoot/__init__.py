@@ -1,1 +1,1 @@
-from .smoot import MOO
+from .smoot import MOO, ZDT, criterion
