@@ -1,5 +1,5 @@
 """
-Author: Dr. John T. Hwang <hwangjt@umich.edu>
+Author: robin grapin
 
 This package is distributed under New BSD license.
 """
@@ -59,7 +59,7 @@ class Test(TestCase):
             problem_exact,
             algorithm_bis,
             ("n_gen", 100),
-            verbose=True,  # False if you do not want the text
+            verbose=False,  # False if you do not want the text
             seed=1,
         )
 
