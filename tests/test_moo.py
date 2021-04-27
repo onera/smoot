@@ -32,7 +32,7 @@ class TestMOO(SMTestCase):
     plot = None
 
     def test_rosenbrock_2Dto3D(self):
-        n_iter = 15
+        n_iter = 30
         fun1 = Rosenbrock(ndim=2)
         fun2 = Rosenbrock(ndim=2)
         fun = lambda x: [fun1(x), fun1(x), fun2(x)]
@@ -156,7 +156,7 @@ class TestMOO(SMTestCase):
         else:
             dist = TestMOO.ecart_front(y_opt1, y_opt2, fun)
             print("distance to the exact Pareto front", dist, "\n")
-            self.assertAlmostEqual(0.0, dist, delta=0.5)
+            self.assertAlmostEqual(0.0, dist, delta=1.5)
 
     def test_zdt_2_EHVI(self):
         self.test_zdt(type=2, criterion="EHVI")
