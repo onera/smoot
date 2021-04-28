@@ -19,8 +19,6 @@ xbounds = [0,1]**n
 """
 
 import numpy as np
-import random
-
 from smt.problems.problem import Problem
 
 
@@ -159,7 +157,7 @@ class ZDT(Problem):
                     )
             return f1, d_g * h + g * d_h
 
-    def pareto(self, npoints=300):
+    def pareto(self, npoints=300, random_state=None):
         """
         Give points of the pareto set and front, useful for plots and
         solver's quality comparition. Pareto reached when g = 0 in ZDT,
@@ -176,7 +174,7 @@ class ZDT(Problem):
             X are points from the pareto set, Y their values.
 
         """
-        X = np.zeros((npoints, self.options["ndim"]))
+        rand = np.random.RandomState(random_state)
         if self.options["type"] == 3:
             F = [
                 [0, 0.0830015349],
@@ -188,8 +186,9 @@ class ZDT(Problem):
             b2 = b1 + F[1][1] - F[1][0]
             b3 = b2 + F[2][1] - F[2][0]
             b4 = b3 + F[3][1] - F[3][0]  # sum([inter[1]-inter[0] for inter in F ])
+            X = np.zeros((npoints, self.options["ndim"]))
             for i in range(npoints):
-                pt = random.uniform(0, b4)
+                pt = rand.uniform(0, b4)
                 if pt > b3:
                     X[i, 0] = F[3][0] + pt - b3
                 elif pt > b2:
@@ -199,6 +198,5 @@ class ZDT(Problem):
                 else:
                     X[i, 0] = pt
         else:
-            for i in range(npoints):
-                X[i, 0] = random.random()
+            X = rand.uniform(0, 1, (npoints, self.options["ndim"]))
         return X, np.real(self._evaluate(X, None))

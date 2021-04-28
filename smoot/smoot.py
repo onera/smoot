@@ -32,7 +32,7 @@ class MOO(SurrogateBasedApplication):
         super()._initialize()
         declare = self.options.declare
 
-        declare("fun", None, types=FunctionType, desc="Function to minimize")
+        # declare("fun", None, types=FunctionType, desc="Function to minimize")
         declare(
             "criterion",
             "PI",
@@ -83,6 +83,11 @@ class MOO(SurrogateBasedApplication):
         declare("verbose", False, types=bool, desc="Print computation information")
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
+        self.options.declare(
+            "random_state",
+            types=(type(None), int, np.random.RandomState),
+            desc="Numpy RandomState object or seed number which controls random draws",
+        )
 
     def optimize(self, fun):
         """
@@ -176,7 +181,9 @@ class MOO(SurrogateBasedApplication):
             and type(self.options["ydoe"]) == np.ndarray
         ):
             return self.options["xdoe"], self.options["ydoe"]
-        sampling = LHS(xlimits=self.options["xlimits"])
+        sampling = LHS(
+            xlimits=self.options["xlimits"], random_state=self.options["random_state"]
+        )
         xt = sampling(self.options["n_start"])
         yt = fun(xt)
         return xt, yt
