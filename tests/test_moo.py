@@ -31,7 +31,7 @@ from pymoo.factory import get_performance_indicator
 class TestMOO(SMTestCase):
 
     plot = None
-    """
+
     def test_rosenbrock_2Dto3D(self):
         n_iter = 30
         fun1 = Rosenbrock(ndim=2)
@@ -47,7 +47,7 @@ class TestMOO(SMTestCase):
             pop_size=50,
             n_gen=50,
             verbose=False,
-            random_state = 42,
+            random_state=42,
         )
         print("running test rosenbrock 2D -> 3D with GA")
         start = time.time()
@@ -58,7 +58,6 @@ class TestMOO(SMTestCase):
         print("seconds taken Rosen : ", time.time() - start, "\n")
         self.assertTrue(np.allclose([1, 1], x_opt, rtol=0.5))
         self.assertTrue(np.allclose([[0, 0, 0]], y_opt, rtol=1))
-    """
 
     def test_Branin(self):
         n_iter = 30
@@ -85,63 +84,6 @@ class TestMOO(SMTestCase):
         )
         self.assertAlmostEqual(0.39, float(y_opt), delta=1)
 
-    @staticmethod
-    def ecart_front(y1, y2, fun, pts=200, random_state=None):
-        """
-        For a 2-objective front, compare the obtained results y1 and y2
-        to the exact pareto front of the fun function to optimize.
-        The method creates a kriging model with the obtained points
-        """
-        n = len(y1)
-        # rotation
-        z1_train = [(y1[i] - y2[i]) / 2 ** 0.5 for i in range(n)]
-        z2_train = [(y1[i] + y2[i]) / 2 ** 0.5 for i in range(n)]
-
-        # krigeage
-        t = KRG(print_global=False)
-        t.set_training_values(np.asarray(z1_train), np.asarray(z2_train))
-        t.train()
-
-        # Comparison points
-        _, y = fun.pareto(pts, random_state=random_state)
-        z1 = [(y[0][i] - y[1][i]) / 2 ** 0.5 for i in range(pts)]
-        z2 = [(y[0][i] + y[1][i]) / 2 ** 0.5 for i in range(pts)]
-        S = t.predict_values(np.asarray(z1))
-
-        # dist
-        return sum([abs(z2[i] - S[i, 0]) for i in range(pts)])[0] / pts
-
-    @staticmethod
-    def ecart_front_inverse(y1, y2, fun, pts=50, random_state=None):
-        # to be modified thanks to deep gaussian processes
-        n = len(y1)
-        # rotation
-        z1_train = [(y1[i] - y2[i]) / 2 ** 0.5 for i in range(n)]
-        z2_train = [(y1[i] + y2[i]) / 2 ** 0.5 for i in range(n)]
-
-        # krigeage
-        t = KRG(print_global=False)
-        t.set_training_values(np.asarray(z1_train), np.asarray(z2_train))
-        t.train()
-
-        # comparison points
-        z1 = [random.uniform(-1, 1) / 2 ** 0.5 for i in range(pts)]
-        S = t.predict_values(np.asarray(z1))
-        P = 10 * pts  # arbitrary, the bigger is the better
-        _, y = fun.pareto(P, random_state=random_state)
-        p1 = [(y[0][i] - y[1][i]) / 2 ** 0.5 for i in range(P)]
-        p2 = [(y[0][i] + y[1][i]) / 2 ** 0.5 for i in range(P)]
-
-        # dist
-        delta = 0
-        for i in range(pts):
-            point = np.array([z1[i], S[i, 0]])
-            distances = [
-                np.linalg.norm(point - np.array([p1[j], p2[j]])) for j in range(P)
-            ]
-            delta += min(distances)
-        return delta / pts
-
     def test_zdt(self, type=1, criterion="PI", ndim=2):
         n_iter = 30
         fun = ZDT(type=type, ndim=ndim)
@@ -155,7 +97,7 @@ class TestMOO(SMTestCase):
         start = time.time()
         mo.optimize(fun=fun)
         print("seconds taken :", time.time() - start)
-        exact = np.transpose(fun.pareto()[1])[0]
+        exact = np.transpose(fun.pareto(random_state=1)[1])[0]
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
@@ -180,9 +122,10 @@ class TestMOO(SMTestCase):
         print("running test ZDT with known training points")
         start = time.time()
         mo.optimize(fun=fun)
-        y_opt1, y_opt2 = mo.result.F[:, 0], mo.result.F[:, 1]
         print("seconds taken :", time.time() - start)
-        dist = TestMOO.ecart_front(y_opt1, y_opt2, fun, random_state=42)
+        exact = np.transpose(fun.pareto(random_state=1)[1])[0]
+        gd = get_performance_indicator("gd", exact)
+        dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
         self.assertAlmostEqual(0.0, dist, delta=1)
 
