@@ -70,6 +70,7 @@ class Test(TestCase):
             xlimits=xlimits,
             n_gen=50,  # number of generations for the genetic algorithm
             pop_size=50,
+            random_state=42,
         )  # number of new individuals at every generation of NSGA2
 
         mo.optimize(objective)
