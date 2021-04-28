@@ -152,7 +152,7 @@ class MOO(SurrogateBasedApplication):
         self.log("Model is well refined, NSGA2 is running...")
         self.result = minimize(
             self.probleme,
-            NSGA2(pop_size=self.options["pop_size"]),
+            NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
             verbose=False,
         )
@@ -250,7 +250,9 @@ class MOO(SurrogateBasedApplication):
         if criter == "GA":
             res = minimize(
                 self.probleme,
-                NSGA2(pop_size=self.options["pop_size"]),
+                NSGA2(
+                    pop_size=self.options["pop_size"], seed=self.options["random_state"]
+                ),
                 ("n_gen", self.options["n_gen"]),
                 verbose=False,
             )
