@@ -5,11 +5,9 @@ Created on Wed Mar 31 14:08:54 2021
 @author: robin grapin
 """
 
-#%% imports
-
+# imports
 import numpy as np
 from random import uniform
-from types import FunctionType
 
 from scipy.optimize import minimize as minimize1D
 
@@ -21,9 +19,7 @@ from smt.applications.application import SurrogateBasedApplication
 from smt.surrogate_models import KPLS, KRG, KPLSK, MGP
 from smt.sampling_methods import LHS
 
-from smoot.criterion import criterion
-
-#%% Optimization loop incrementing the surrogates
+from smoot.criterion import Criterion
 
 
 class MOO(SurrogateBasedApplication):
@@ -61,7 +57,7 @@ class MOO(SurrogateBasedApplication):
             KRG(print_global=False),
             types=(KRG, KPLS, KPLSK, MGP),
             desc="SMT kriging-based surrogate model used internaly",
-        )  # ne pas utiliser ou adapter au multiobj qu'on aie bien des modeles indep pour chaque objectif
+        )  # use only for 1-objective for ego, KRG is actually always taken for MOO
         declare(
             "pop_size",
             100,
@@ -105,9 +101,10 @@ class MOO(SurrogateBasedApplication):
         if type(self.options["xlimits"]) != np.ndarray:
             try:
                 self.options["xlimits"] = fun.xlimits
-            except:  # if fun doesn't have "xlimits" attribute
+            except AttributeError:  # if fun doesn't have "xlimits" attribute
                 print("Error : No bounds given")
                 return
+
         x_data, y_data = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
         # n_parallel = self.options["n_parallel"]
@@ -160,8 +157,6 @@ class MOO(SurrogateBasedApplication):
             "Optimization done, get the front with .result.F and the set with .result.X"
         )
 
-    # return result.X , result.F
-
     def _setup_optimizer(self, fun):
         """
         Parameters
@@ -194,9 +189,9 @@ class MOO(SurrogateBasedApplication):
 
         Parameters
         ----------
-        xt : TYPE
+        xt : ndarray[n_points, n_dim]
             Design space coordinates of the training points.
-        yt : TYPE
+        yt : ndarray[n_points, n_objectives]
             Training outputs.
         """
         self.modeles = []
@@ -280,21 +275,21 @@ class MOO(SurrogateBasedApplication):
             return X[i, :]  # , Y[i,:]
 
         if criter == "PI":
-            PI = criterion("PI", self.modeles)
+            PI = Criterion("PI", self.modeles)
             self.obj_k = lambda x: -PI(x)
         if criter == "EHVI":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
             ref = [ydata[:, 0].max() + 1, ydata[:, 1].max() + 1]
-            EHVI = criterion("EHVI", self.modeles, ref)
+            EHVI = Criterion("EHVI", self.modeles, ref)
             self.obj_k = lambda x: -EHVI(x)
         if criter == "WB2S":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
             ref = [ydata[:, 0].max() + 1, ydata[:, 1].max() + 1]
-            EHVI = criterion("EHVI", self.modeles, ref)
+            EHVI = Criterion("EHVI", self.modeles, ref)
             self.obj_k_inter = lambda x: -EHVI(x)
             xstart_inter = np.zeros(self.ndim)
             bounds = self.options["xlimits"]
@@ -317,7 +312,8 @@ class MOO(SurrogateBasedApplication):
                     )
                     / EHVImax
                 )
-            WB2S = criterion("WB2S", self.modeles, ref, s)
+
+            WB2S = Criterion("WB2S", self.modeles, ref, s)
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)

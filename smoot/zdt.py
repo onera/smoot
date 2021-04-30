@@ -5,24 +5,22 @@ Created on Tue Apr  6 10:07:51 2021
 @author: robin
 """
 
-#%% fonction test relou
-
-"""
-ZDT toolkit
-x = {x1.. xn}
-y = {x1.. xj} = {y1.. yj} #for simplicity, here, j = Int(n/2)
-z = {x(j+1).. xn} = {z1.. zk}
-Testing functions with the shape :
-    f1 : y -> f1(y)
-    f2 : y,z -> g(z)h(f1(y),g(z))
-xbounds = [0,1]**n
-"""
-
 import numpy as np
 from smt.problems.problem import Problem
 
 
 class ZDT(Problem):
+    """
+    ZDT toolkit
+    x = {x1.. xn}
+    y = {x1.. xj} = {y1.. yj} #for simplicity, here, j = Int(n/2)
+    z = {x(j+1).. xn} = {z1.. zk}
+    Testing functions with the shape :
+        f1 : y -> f1(y)
+        f2 : y,z -> g(z)h(f1(y),g(z))
+    xbounds = [0,1]**n
+    """
+
     def _initialize(self):
         self.options.declare("ndim", 2, types=int)
         self.options.declare("name", "ZDT", types=str)

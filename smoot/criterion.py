@@ -8,9 +8,9 @@ import numpy as np
 from scipy.stats import norm
 
 
-class criterion(object):
+class Criterion(object):
     def __init__(self, name, models, ref=None, s=None):
-        self.modeles = models
+        self.models = models
         self.name = name
         self.ref = ref
         self.s = s
@@ -26,6 +26,8 @@ class criterion(object):
     # Caution !!!! 2-d objective space only for the moment !!!
     def PI(self, x):
         """
+        Probabilty of improvement of the point x
+
         Parameters
         ----------
         x : list
@@ -38,13 +40,13 @@ class criterion(object):
         """
 
         ydata = np.transpose(
-            np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
+            np.asarray([mod.training_points[None][0][1] for mod in self.models])
         )[0]
         pareto_index = self.pareto(ydata)
         pareto_front = [ydata[i] for i in pareto_index]
-        moyennes = [mod.predict_values for mod in self.modeles]
+        moyennes = [mod.predict_values for mod in self.models]
         variances = [
-            mod.predict_variances for mod in self.modeles
+            mod.predict_variances for mod in self.models
         ]  # racine d'une fction ne marche pas,je fais donc en 2 temps pour ecart-type
         x = np.asarray(x).reshape(1, -1)
         sig1, sig2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
@@ -65,7 +67,8 @@ class criterion(object):
             print("training x called : ", x)
             return 0
 
-    def psi(self, a, b, µ, s):
+    @staticmethod
+    def psi(a, b, µ, s):
         return s * norm.pdf((b - µ) / s) + (a - µ) * norm.cdf((b - µ) / s)
 
     # Caution !!!! 2-d objective space only for the moment !!!
@@ -88,16 +91,16 @@ class criterion(object):
             Expected HVImprovement
         """
         x = np.asarray(x).reshape(1, -1)
-        variances = [mod.predict_variances for mod in self.modeles]
+        variances = [mod.predict_variances for mod in self.models]
         s1, s2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
         if s1 == 0 or s2 == 0:  # training point
             return 0
         ydata = np.transpose(
-            np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
+            np.asarray([mod.training_points[None][0][1] for mod in self.models])
         )[0]
         pareto_index = self.pareto(ydata)
         f = [ydata[i] for i in pareto_index]  # pareto front
-        moyennes = [mod.predict_values for mod in self.modeles]
+        moyennes = [mod.predict_values for mod in self.models]
         µ1, µ2 = moyennes[0](x)[0][0], moyennes[1](x)[0][0]
         f.sort(key=lambda x: x[0])
         f.insert(0, np.array([ref[0], -1e15]))  # 1e15 to approximate infinity
@@ -107,12 +110,12 @@ class criterion(object):
             res1 += (
                 (f[i][0] - f[i + 1][0])
                 * norm.cdf((f[i + 1][0] - µ1) / s1)
-                * self.psi(f[i + 1][1], f[i + 1][1], µ2, s2)
+                * Criterion.psi(f[i + 1][1], f[i + 1][1], µ2, s2)
             )
             res2 += (
-                self.psi(f[i][0], f[i][0], µ1, s1)
-                - self.psi(f[i][0], f[i + 1][0], µ1, s1)
-            ) * self.psi(f[i][1], f[i][1], µ2, s2)
+                Criterion.psi(f[i][0], f[i][0], µ1, s1)
+                - Criterion.psi(f[i][0], f[i + 1][0], µ1, s1)
+            ) * Criterion.psi(f[i][1], f[i][1], µ2, s2)
         return res1 + res2
 
     def WB2S(self, x, ref, s):
@@ -136,12 +139,13 @@ class criterion(object):
         WBS2 : float
         """
         x = np.asarray(x).reshape(1, -1)
-        moyennes = [mod.predict_values for mod in self.modeles]
+        moyennes = [mod.predict_values for mod in self.models]
         µ = [moy(x)[0][0] for moy in moyennes]
         y = sum(µ)
         return s * self.EHVI(x, ref) - y
 
-    def pareto(self, Y):
+    @staticmethod
+    def pareto(Y):
         """
         Parameters
         ----------
@@ -162,7 +166,7 @@ class criterion(object):
                     if not dominated[
                         y2
                     ]:  # if y2 is dominated (by y0), we already compared y0 to y
-                        y_domine_y2, y2_domine_y = self.dominate_min(Y[y], Y[y2])
+                        y_domine_y2, y2_domine_y = Criterion.dominate_min(Y[y], Y[y2])
 
                         if y_domine_y2:
                             dominated[y2] = True
@@ -174,7 +178,8 @@ class criterion(object):
         return index
 
     # returns a-dominates-b , b-dominates-a !! for minimization !!
-    def dominate_min(self, a, b):
+    @staticmethod
+    def dominate_min(a, b):
         """
         Parameters
         ----------
