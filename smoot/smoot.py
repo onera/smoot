@@ -97,6 +97,7 @@ class MOO(SurrogateBasedApplication):
             function taking x=ndarray[ne,ndim],
             returning y = [ndarray[ne, 1],ndarray[ne, 1],...]
             where y[i][j][0] = fi(xj).
+            If fun has only one objective, y = ndarray[ne, 1]
         """
         if type(self.options["xlimits"]) != np.ndarray:
             try:
@@ -108,16 +109,14 @@ class MOO(SurrogateBasedApplication):
         x_data, y_data = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
         # n_parallel = self.options["n_parallel"]
-        try:
-            y_data[0][0][0] += 0
-            self.ny = len(y_data)
-        except:
+        if isinstance(y_data[0][0], float):
             self.log("EGO will be used as there is only 1 objective")
             self.use_ego(fun, x_data, y_data)
             self.log(
                 "Optimization done, get the front with .result.F and the set with .result.X"
             )
             return
+        self.ny = len(y_data)
         if self.ny > 2 and self.options["criterion"] != "GA":
             self.log(
                 "Only GA is available for more than 2 objectives at the moment, criterion will be switched"

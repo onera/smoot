@@ -26,7 +26,7 @@ class Criterion(object):
     # Caution !!!! 2-d objective space only for the moment !!!
     def PI(self, x):
         """
-        Probabilty of improvement of the point x
+        Probability of improvement of the point x
 
         Parameters
         ----------
