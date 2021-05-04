@@ -7,13 +7,12 @@ Created on Wed Mar 31 14:08:54 2021
 
 # imports
 import numpy as np
-from random import uniform
-
 from scipy.optimize import minimize as minimize1D
 
 from pymoo.algorithms.nsga2 import NSGA2
 from pymoo.model.problem import Problem
 from pymoo.optimize import minimize
+from pymoo.factory import get_performance_indicator
 
 from smt.applications.application import SurrogateBasedApplication
 from smt.surrogate_models import KPLS, KRG, KPLSK, MGP
@@ -117,11 +116,11 @@ class MOO(SurrogateBasedApplication):
             )
             return
         self.ny = len(y_data)
-        if self.ny > 2 and self.options["criterion"] != "GA":
+        if self.ny > 2 and self.options["criterion"] == "PI":
             self.log(
-                "Only GA is available for more than 2 objectives at the moment, criterion will be switched"
+                "PI is not available for more than 2 objectives, criterion will be switched to EHVI"
             )
-            self.options["criterion"] = "GA"
+            self.options["criterion"] = "EHVI"
 
         # obtaining models for each objective
         self.modelize(x_data, y_data)
@@ -150,7 +149,7 @@ class MOO(SurrogateBasedApplication):
             self.probleme,
             NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
-            verbose=False,
+            verbose=self.options["verbose"],
         )
         self.log(
             "Optimization done, get the front with .result.F and the set with .result.X"
@@ -167,7 +166,7 @@ class MOO(SurrogateBasedApplication):
         xt : array of arrays
             sampling points in the design space.
         yt : list of arrays
-            yt[i] = f1(xt).
+            yt[i] = fi(xt).
 
         """
         if (
@@ -271,7 +270,7 @@ class MOO(SurrogateBasedApplication):
                 for j in range(X.shape[0])
             ]
             i = dispersion.index(max(dispersion))
-            return X[i, :]  # , Y[i,:]
+            return X[i, :]
 
         if criter == "PI":
             PI = Criterion("PI", self.modeles)
@@ -280,8 +279,12 @@ class MOO(SurrogateBasedApplication):
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
-            ref = [ydata[:, 0].max() + 1, ydata[:, 1].max() + 1]
-            EHVI = Criterion("EHVI", self.modeles, ref)
+            ref = [ydata[:, i].max() + 1 for i in range(self.ny)]
+            if self.ny == 2:
+                EHVI = Criterion("EHVI", self.modeles, ref)
+            else:
+                hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+                EHVI = Criterion("EHVIMC", self.modeles, hv=hv, points=100)
             self.obj_k = lambda x: -EHVI(x)
         if criter == "WB2S":
             ydata = np.transpose(
@@ -292,10 +295,12 @@ class MOO(SurrogateBasedApplication):
             self.obj_k_inter = lambda x: -EHVI(x)
             xstart_inter = np.zeros(self.ndim)
             bounds = self.options["xlimits"]
+            rand = np.random.RandomState(self.options["random_state"])
             for i in range(self.ndim):
-                xstart_inter[i] = uniform(*bounds[i])
+                xstart_inter[i] = rand.uniform(*bounds[i])
             xmax = minimize1D(self.obj_k_inter, xstart_inter, bounds=bounds).x
             EHVImax = EHVI(xmax)
+            self.log("EHVImax found " + str(EHVImax))
             if EHVImax == 0:
                 s = 1
             else:
@@ -311,15 +316,18 @@ class MOO(SurrogateBasedApplication):
                     )
                     / EHVImax
                 )
-
             WB2S = Criterion("WB2S", self.modeles, ref, s)
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)
         bounds = self.options["xlimits"]
+        rando = np.random.RandomState(self.options["random_state"])
         for i in range(self.ndim):
-            xstart[i] = uniform(*bounds[i])
-        return minimize1D(self.obj_k, xstart, bounds=bounds).x
+            xstart[i] = rando.uniform(*bounds[i])
+        x_opt = minimize1D(self.obj_k, xstart, bounds=bounds).x
+        self.log("x_opt : " + str(x_opt))
+        self.log("criterion value : " + str(self.obj_k(x_opt)))
+        return x_opt
 
     def log(self, msg):
         if self.options["verbose"]:

@@ -38,7 +38,7 @@ class TestMOO(SMTestCase):
         fun2 = Rosenbrock(ndim=2)
         fun = lambda x: [fun1(x), fun1(x), fun2(x)]
         xlimits = fun1.xlimits
-        criterion = "GA"
+        criterion = "EHVI"
 
         mo = MOO(
             n_iter=n_iter,
@@ -84,7 +84,7 @@ class TestMOO(SMTestCase):
         )
         self.assertAlmostEqual(0.39, float(y_opt), delta=1)
 
-    def test_zdt(self, type=1, criterion="PI", ndim=2):
+    def test_zdt(self, type=1, criterion="WB2S", ndim=2):
         n_iter = 30
         fun = ZDT(type=type, ndim=ndim)
 
@@ -101,13 +101,13 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 2.0)
+        self.assertLess(dist, 1.0)
 
     def test_zdt_2_EHVI(self):
         self.test_zdt(type=2, criterion="EHVI")
 
     def test_zdt_3_EHVI(self):
-        self.test_zdt(type=3, criterion="EHVI")
+        self.test_zdt(type=3, criterion="PI")
 
     def test_zdt_2_EHVI_3Dto2D(self):
         self.test_zdt(type=2, criterion="EHVI", ndim=3)
@@ -115,10 +115,10 @@ class TestMOO(SMTestCase):
     def test_train_pts_known(self):
         fun = ZDT()
         xlimits = fun.xlimits
-        sampling = LHS(xlimits=xlimits, random_state=42)
+        sampling = LHS(xlimits=xlimits, random_state=1)
         xt = sampling(20)  # generating data as if it were known data
         yt = fun(xt)  # idem : "known" datapoint for training
-        mo = MOO(n_iter=30, criterion="EHVI", xdoe=xt, ydoe=yt, random_state=42)
+        mo = MOO(n_iter=30, criterion="GA", xdoe=xt, ydoe=yt, random_state=42)
         print("running test ZDT with known training points")
         start = time.time()
         mo.optimize(fun=fun)
@@ -127,11 +127,8 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertAlmostEqual(0.0, dist, delta=1)
+        self.assertLess(dist, 2.0)
 
 
 if __name__ == "__main__":
-    if "--plot" in argv:
-        TestMOO.plot = True
-        argv.remove("--plot")
     unittest.main()

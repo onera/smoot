@@ -6,22 +6,68 @@ Created on Mon Apr 26 10:26:43 2021
 """
 import numpy as np
 from scipy.stats import norm
+from smoot.montecarlo import MonteCarlo
 
 
 class Criterion(object):
-    def __init__(self, name, models, ref=None, s=None):
+    def __init__(
+        self,
+        name,
+        models,
+        ref=None,
+        s=None,
+        hv=None,
+        bounds=None,
+        points=300,
+        random_state=None,
+    ):
         self.models = models
         self.name = name
         self.ref = ref
         self.s = s
+        self.hv = hv
+        self.bounds = bounds
+        self.points = points
+        self.random_state = random_state
 
     def __call__(self, x):
         if self.name == "PI":
             return self.PI(x)
         if self.name == "EHVI":
             return self.EHVI(x, self.ref)
+        if self.name == "HV":
+            return self.HV(x)
         if self.name == "WB2S":
             return self.WB2S(x, self.ref, self.s)
+        if self.name == "EHVIMC":
+            return self.EHVIMC(x)
+
+    def EHVIMC(self, x):
+        """
+        Computes EHVI thanks to Monte-Carlo sampling
+        I expect to improve it soon to also compute HV thanks to MC
+
+        Parameters
+        ----------
+        x : list
+            Design space vector.
+
+        Returns
+        -------
+        float
+            Expected hypervolume improvement statistically calculated.
+
+        """
+        x = np.asarray(x).reshape(1, -1)
+        y = np.asarray([mod.predict_values(x)[0][0] for mod in self.models])
+        pareto_front = Criterion._compute_pareto(self.models)
+        if Criterion.is_dominated(y, pareto_front):
+            return 0  # the point is dominated
+        MC = MonteCarlo(random_state=self.random_state)
+        q = MC.sampling(x, self.models, self.points)
+        return (
+            sum([self.hv.calc(np.vstack((pareto_front, qi))) for qi in q]) / self.points
+        )  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
 
     # Caution !!!! 2-d objective space only for the moment !!!
     def PI(self, x):
@@ -39,15 +85,9 @@ class Criterion(object):
             PI(x) : probability that x is an improvement € [0,1]
         """
 
-        ydata = np.transpose(
-            np.asarray([mod.training_points[None][0][1] for mod in self.models])
-        )[0]
-        pareto_index = self.pareto(ydata)
-        pareto_front = [ydata[i] for i in pareto_index]
+        pareto_front = Criterion._compute_pareto(self.models)
         moyennes = [mod.predict_values for mod in self.models]
-        variances = [
-            mod.predict_variances for mod in self.models
-        ]  # racine d'une fction ne marche pas,je fais donc en 2 temps pour ecart-type
+        variances = [mod.predict_variances for mod in self.models]
         x = np.asarray(x).reshape(1, -1)
         sig1, sig2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
         moy1, moy2 = moyennes[0](x)[0][0], moyennes[1](x)[0][0]
@@ -64,14 +104,13 @@ class Criterion(object):
             )
             return pi_x
         except:  # for training points -> having variances = 0
-            print("training x called : ", x)
             return 0
 
     @staticmethod
     def psi(a, b, µ, s):
         return s * norm.pdf((b - µ) / s) + (a - µ) * norm.cdf((b - µ) / s)
 
-    # Caution !!!! 2-d objective space only for the moment !!!
+    # Caution !!!! 2-d objective space only
     def EHVI(self, x, ref):
         """
         Expected hypervolume improvement if x is the new point added
@@ -95,11 +134,7 @@ class Criterion(object):
         s1, s2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
         if s1 == 0 or s2 == 0:  # training point
             return 0
-        ydata = np.transpose(
-            np.asarray([mod.training_points[None][0][1] for mod in self.models])
-        )[0]
-        pareto_index = self.pareto(ydata)
-        f = [ydata[i] for i in pareto_index]  # pareto front
+        f = Criterion._compute_pareto(self.models)
         moyennes = [mod.predict_values for mod in self.models]
         µ1, µ2 = moyennes[0](x)[0][0], moyennes[1](x)[0][0]
         f.sort(key=lambda x: x[0])
@@ -117,6 +152,28 @@ class Criterion(object):
                 - Criterion.psi(f[i][0], f[i + 1][0], µ1, s1)
             ) * Criterion.psi(f[i][1], f[i][1], µ2, s2)
         return res1 + res2
+
+    def HV(self, x):
+        """
+        hypervolume if x is the new point added. Only the mean is taken,
+        so it doesn't explore as it doesn't take in account the incertitude.
+        A good idea is to combine it with the var. (to do : look if ucb is doing this)
+
+        Parameters
+        ----------
+        x : list
+            coordinates in the design space of the point to evaluate.
+
+        Returns
+        -------
+        out : float
+            Hypervolume of the current front concatened with µ(x)
+        """
+        x = np.asarray(x).reshape(1, -1)
+        pf = Criterion._compute_pareto(self.models)
+        moyennes = [mod.predict_values for mod in self.models]
+        y = np.asarray([moy(x)[0][0] for moy in moyennes])
+        return self.hv.calc(np.vstack((pf, y)))
 
     def WB2S(self, x, ref, s):
         """
@@ -143,6 +200,20 @@ class Criterion(object):
         µ = [moy(x)[0][0] for moy in moyennes]
         y = sum(µ)
         return s * self.EHVI(x, ref) - y
+
+    @staticmethod
+    def _compute_pareto(modeles):
+        """
+        Set curr_pareto_front to the non-dominated training points.
+        It allows to compute it once for a complete enrichment step
+        """
+        ydata = np.transpose(
+            np.asarray([mod.training_points[None][0][1] for mod in modeles])
+        )[0]
+        pareto_index = Criterion.pareto(ydata)
+        # self.curr_pareto_front = [ydata[i] for i in pareto_index]
+        # I remove this and the associated self. variable beacause for a reason that I do not unserstand, it is way faster to recompute it at every call than to store it
+        return [ydata[i] for i in pareto_index]
 
     @staticmethod
     def pareto(Y):
@@ -211,3 +282,12 @@ class Criterion(object):
         if b_bat_a and (not a_bat_b):
             return False, True
         return False, False  # same values
+
+    @staticmethod
+    def is_dominated(x, pf):
+        """True if x is dominated by a point of pf"""
+        for z in pf:
+            battu, _ = Criterion.dominate_min(z, x)
+            if battu:
+                return True
+        return False

@@ -173,6 +173,7 @@ class ZDT(Problem):
 
         """
         rand = np.random.RandomState(random_state)
+        X = np.zeros((npoints, self.options["ndim"]))
         if self.options["type"] == 3:
             F = [
                 [0, 0.0830015349],
@@ -184,7 +185,6 @@ class ZDT(Problem):
             b2 = b1 + F[1][1] - F[1][0]
             b3 = b2 + F[2][1] - F[2][0]
             b4 = b3 + F[3][1] - F[3][0]  # sum([inter[1]-inter[0] for inter in F ])
-            X = np.zeros((npoints, self.options["ndim"]))
             for i in range(npoints):
                 pt = rand.uniform(0, b4)
                 if pt > b3:
@@ -196,5 +196,5 @@ class ZDT(Problem):
                 else:
                     X[i, 0] = pt
         else:
-            X = rand.uniform(0, 1, (npoints, self.options["ndim"]))
+            X[:, 0] = rand.uniform(0, 1, npoints)
         return X, np.real(self._evaluate(X, None))
