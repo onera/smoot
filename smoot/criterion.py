@@ -10,7 +10,17 @@ from smoot.montecarlo import MonteCarlo
 
 
 class Criterion(object):
-    def __init__(self, name, models, ref=None, s=None, hv =None, bounds = None, points = 300, random_state = None):
+    def __init__(
+        self,
+        name,
+        models,
+        ref=None,
+        s=None,
+        hv=None,
+        bounds=None,
+        points=300,
+        random_state=None,
+    ):
         self.models = models
         self.name = name
         self.ref = ref
@@ -33,8 +43,8 @@ class Criterion(object):
             return self.EHVIMC(x)
         if self.name == "PIMC":
             return self.PIMC(x)
-        
-    def PIMC(self,x):
+
+    def PIMC(self, x):
         """
         Computes PI(x) thanks to Monte-Carlo sampling.
 
@@ -49,15 +59,24 @@ class Criterion(object):
             Improvement probability statistically calculated.
         """
         x = np.asarray(x).reshape(1, -1)
-        y = np.asarray([mod.predict_values(x)[0][0] - 3*mod.predict_variances(x)[0][0] for mod in self.models])
+        y = np.asarray(
+            [
+                mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
+                for mod in self.models
+            ]
+        )
         pareto_front = Criterion._compute_pareto(self.models)
         if Criterion.is_dominated(y, pareto_front):
-            return 0 #the point - 3sigma is dominated, almost no chances of improvement
-        MC = MonteCarlo(random_state = self.random_state)
+            return (
+                0  # the point - 3sigma is dominated, almost no chances of improvement
+            )
+        MC = MonteCarlo(random_state=self.random_state)
         q = MC.sampling(x, self.models, self.points)
-        return (self.points - sum([Criterion.is_dominated(qi, pareto_front) for qi in q]) ) / self.points#maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here        
-        
-    def EHVIMC(self,x):
+        return (
+            self.points - sum([Criterion.is_dominated(qi, pareto_front) for qi in q])
+        ) / self.points  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
+
+    def EHVIMC(self, x):
         """
         Computes EHVI(x) thanks to Monte-Carlo sampling.
 
@@ -72,18 +91,25 @@ class Criterion(object):
             Expected hypervolume improvement statistically calculated.
         """
         x = np.asarray(x).reshape(1, -1)
-        y = np.asarray([mod.predict_values(x)[0][0] - 3*mod.predict_variances(x)[0][0] for mod in self.models])
+        y = np.asarray(
+            [
+                mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
+                for mod in self.models
+            ]
+        )
         pareto_front = Criterion._compute_pareto(self.models)
         if Criterion.is_dominated(y, pareto_front):
-            return 0 #the point - 3sigma is dominated, no chances to improve hv
-        MC = MonteCarlo(random_state = self.random_state)
+            return 0  # the point - 3sigma is dominated, no chances to improve hv
+        MC = MonteCarlo(random_state=self.random_state)
         q = MC.sampling(x, self.models, self.points)
-        return sum([self.hv.calc(np.vstack((pareto_front,qi))) for qi in q]) / self.points#maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here        
+        return (
+            sum([self.hv.calc(np.vstack((pareto_front, qi))) for qi in q]) / self.points
+        )  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
 
     def PI(self, x):
         """
         Probability of improvement of the point x for 2 objectives
-        
+
         Parameters
         ----------
         x : list
@@ -95,11 +121,10 @@ class Criterion(object):
             PI(x) : probability that x is an improvement € [0,1]
         """
 
-        pareto_front = Criterion._compute_pareto(self.models).sort(key=lambda x: x[0])
+        pareto_front = Criterion._compute_pareto(self.models)  #
+        pareto_front.sort(key=lambda x: x[0])
         moyennes = [mod.predict_values for mod in self.models]
-        variances = [
-            mod.predict_variances for mod in self.models
-        ] 
+        variances = [mod.predict_variances for mod in self.models]
         x = np.asarray(x).reshape(1, -1)
         sig1, sig2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
         moy1, moy2 = moyennes[0](x)[0][0], moyennes[1](x)[0][0]
@@ -115,11 +140,11 @@ class Criterion(object):
                 (pareto_front[m - 1][1] - moy2) / sig2
             )
             return pi_x
-        except ZeroDivisionError:# for training points -> variances = 0
+        except ZeroDivisionError:  # for training points -> variances = 0
             return 0
 
     @staticmethod
-    def psi( a, b, µ, s):
+    def psi(a, b, µ, s):
         return s * norm.pdf((b - µ) / s) + (a - µ) * norm.cdf((b - µ) / s)
 
     def EHVI(self, x, ref):
@@ -184,8 +209,8 @@ class Criterion(object):
         pf = Criterion._compute_pareto(self.models)
         moyennes = [mod.predict_values for mod in self.models]
         y = np.asarray([moy(x)[0][0] for moy in moyennes])
-        return self.hv.calc(np.vstack((pf,y)))
-        
+        return self.hv.calc(np.vstack((pf, y)))
+
     def WB2S(self, x, ref, s):
         """
         Criterion WB2S multi-objective adapted from the paper "Adapated
@@ -212,9 +237,9 @@ class Criterion(object):
         y = sum(µ)
         if len(moyennes) == 2:
             return s * self.EHVI(x, ref) - y
-        return s* self.EHVIMC(x) - y
-    
-    @staticmethod    
+        return s * self.EHVIMC(x) - y
+
+    @staticmethod
     def _compute_pareto(modeles):
         """
         Set curr_pareto_front to the non-dominated training points.
@@ -224,10 +249,10 @@ class Criterion(object):
             np.asarray([mod.training_points[None][0][1] for mod in modeles])
         )[0]
         pareto_index = Criterion.pareto(ydata)
-        #self.curr_pareto_front = [ydata[i] for i in pareto_index] 
-        #I remove this and the associated self. variable beacause for a reason that I do not unserstand, it is way faster to recompute it at every call than to store it
+        # self.curr_pareto_front = [ydata[i] for i in pareto_index]
+        # I remove this and the associated self. variable beacause for a reason that I do not unserstand, it is way faster to recompute it at every call than to store it
         return [ydata[i] for i in pareto_index]
-    
+
     @staticmethod
     def pareto(Y):
         """
@@ -295,13 +320,12 @@ class Criterion(object):
         if b_bat_a and (not a_bat_b):
             return False, True
         return False, False  # same values
-    
+
     @staticmethod
-    def is_dominated(x,pf):
+    def is_dominated(x, pf):
         """True if x is dominated by a point of pf"""
         for z in pf:
-            battu,_ = Criterion.dominate_min(z, x)
-            if battu :
+            battu, _ = Criterion.dominate_min(z, x)
+            if battu:
                 return True
         return False
-

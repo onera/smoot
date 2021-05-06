@@ -5,7 +5,6 @@ Created on Wed Mar 31 14:08:54 2021
 @author: robin grapin
 """
 
-# imports
 import numpy as np
 from scipy.optimize import minimize as minimize1D
 
@@ -56,7 +55,7 @@ class MOO(SurrogateBasedApplication):
             KRG(print_global=False),
             types=(KRG, KPLS, KPLSK, MGP),
             desc="SMT kriging-based surrogate model used internaly",
-        )#use only for 1-objective for ego, KRG is actually always taken for MOO
+        )  # use only for 1-objective for ego, KRG is actually always taken for MOO
         declare(
             "pop_size",
             100,
@@ -79,7 +78,8 @@ class MOO(SurrogateBasedApplication):
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
         self.options.declare(
-            "random_state", None,
+            "random_state",
+            None,
             types=(type(None), int),
             desc="seed number which controls random draws",
         )
@@ -100,7 +100,7 @@ class MOO(SurrogateBasedApplication):
             If fun has only one objective, y = ndarray[ne, 1]
         """
         if type(self.options["xlimits"]) != np.ndarray:
-            try :
+            try:
                 self.options["xlimits"] = fun.xlimits
             except AttributeError:  # if fun doesn't have "xlimits" attribute
                 print("Error : No bounds given")
@@ -145,7 +145,6 @@ class MOO(SurrogateBasedApplication):
             self.probleme,
             NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
-            verbose=False,
         )
         self.log(
             "Optimization done, get the front with .result.F and the set with .result.X"
@@ -271,21 +270,32 @@ class MOO(SurrogateBasedApplication):
         if criter == "PI":
             if self.ny == 2:
                 PI = Criterion("PI", self.modeles)
-            else :
-                PI = Criterion("PIMC", self.modeles,points = 100*self.ny, random_state = self.options["random_state"])
+            else:
+                PI = Criterion(
+                    "PIMC",
+                    self.modeles,
+                    points=100 * self.ny,
+                    random_state=self.options["random_state"],
+                )
             self.obj_k = lambda x: -PI(x)
-            
+
         if criter == "EHVI":
             ydata = np.transpose(
-                    np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
-                )[0]
+                np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
+            )[0]
             ref = [ydata[:, i].max() + 1 for i in range(self.ny)]
             if self.ny == 2:
                 EHVI = Criterion("EHVI", self.modeles, ref)
-            else :
-                hv = get_performance_indicator('hv',ref_point = np.asarray(ref))
-                EHVI = Criterion("EHVIMC", self.modeles, hv = hv, points = 100*self.ny, random_state = self.options["random_state"])
-            self.obj_k = lambda x :  - EHVI(x)
+            else:
+                hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+                EHVI = Criterion(
+                    "EHVIMC",
+                    self.modeles,
+                    hv=hv,
+                    points=100 * self.ny,
+                    random_state=self.options["random_state"],
+                )
+            self.obj_k = lambda x: -EHVI(x)
 
         if criter == "WB2S":
             ydata = np.transpose(
@@ -300,18 +310,22 @@ class MOO(SurrogateBasedApplication):
                 xstart_inter[i] = self.seed.uniform(*bounds[i])
             xmax = minimize1D(self.obj_k_inter, xstart_inter, bounds=bounds).x
             EHVImax = EHVI(xmax)
-            self.log("EHVImax found "+str(EHVImax))
+            self.log("EHVImax found " + str(EHVImax))
             if EHVImax == 0:
                 s = 1
             else:
                 moyennes = [mod.predict_values for mod in self.modeles]
                 beta = 100  # to be discussed
-                s = beta* sum(
+                s = (
+                    beta
+                    * sum(
                         [
                             abs(moy(np.asarray(xmax).reshape(1, -1))[0][0])
                             for moy in moyennes
                         ]
-                    )/ EHVImax
+                    )
+                    / EHVImax
+                )
             WB2S = Criterion("WB2S", self.modeles, ref, s)
             self.obj_k = lambda x: -WB2S(x)
 
@@ -319,9 +333,9 @@ class MOO(SurrogateBasedApplication):
         bounds = self.options["xlimits"]
         for i in range(self.ndim):
             xstart[i] = self.seed.uniform(*bounds[i])
-        x_opt =  minimize1D(self.obj_k, xstart, bounds=bounds).x
-        self.log("x_opt : "+str( x_opt))
-        self.log("criterion value : "+str( self.obj_k(x_opt)))
+        x_opt = minimize1D(self.obj_k, xstart, bounds=bounds).x
+        self.log("x_opt : " + str(x_opt))
+        self.log("criterion value : " + str(self.obj_k(x_opt)))
         return x_opt
 
     def log(self, msg):

@@ -7,12 +7,12 @@ Created on Mon May  3 14:38:58 2021
 
 import numpy as np
 
+
 class MonteCarlo(object):
-    
-    def __init__(self, random_state = None):
+    def __init__(self, random_state=None):
         self.seed = np.random.RandomState(random_state)
-    
-    def sampling(self, x, distrib, points = 300):
+
+    def sampling(self, x, distrib, points=300):
         """
         Samples the objective space according to the probability distribution
         Points are uniformly generated on the design space, then their image
@@ -34,7 +34,7 @@ class MonteCarlo(object):
 
         """
         moyennes = np.asarray([model.predict_values(x)[0][0] for model in distrib])
-        sigmas = np.asarray([model.predict_variances(x)[0][0]**0.5 for model in distrib])
-        return self.seed.normal(moyennes,sigmas,(points,len(distrib)))
-
- 
+        sigmas = np.asarray(
+            [model.predict_variances(x)[0][0] ** 0.5 for model in distrib]
+        )
+        return self.seed.normal(moyennes, sigmas, (points, len(distrib)))
