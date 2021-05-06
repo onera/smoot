@@ -11,9 +11,7 @@ warnings.filterwarnings("ignore")
 import time
 import unittest
 import numpy as np
-from sys import argv
 import matplotlib
-import random
 
 matplotlib.use("Agg")
 
@@ -23,7 +21,7 @@ from smoot.zdt import ZDT
 from smt.sampling_methods import LHS
 from smt.problems import Branin, Rosenbrock
 from smt.utils.sm_test_case import SMTestCase
-from smt.surrogate_models import KRG
+#from smt.surrogate_models import KRG
 
 from pymoo.factory import get_performance_indicator
 
@@ -49,7 +47,7 @@ class TestMOO(SMTestCase):
             verbose=False,
             random_state=42,
         )
-        print("running test rosenbrock 2D -> 3D with GA")
+        print("running test rosenbrock 2D -> 3D with", criterion)
         start = time.time()
         mo.optimize(fun=fun)
         x_opt, y_opt = mo.result.X[0], mo.result.F[0]
