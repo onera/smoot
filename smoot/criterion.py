@@ -304,3 +304,4 @@ class Criterion(object):
             if battu :
                 return True
         return False
+

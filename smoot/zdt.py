@@ -20,6 +20,7 @@ class ZDT(Problem):
         f2 : y,z -> g(z)h(f1(y),g(z))
     xbounds = [0,1]**n
     """
+
     def _initialize(self):
         self.options.declare("ndim", 2, types=int)
         self.options.declare("name", "ZDT", types=str)
@@ -184,6 +185,7 @@ class ZDT(Problem):
             b2 = b1 + F[1][1] - F[1][0]
             b3 = b2 + F[2][1] - F[2][0]
             b4 = b3 + F[3][1] - F[3][0]  # sum([inter[1]-inter[0] for inter in F ])
+
             for i in range(npoints):
                 pt = rand.uniform(0, b4)
                 if pt > b3:

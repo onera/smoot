@@ -5,6 +5,7 @@ Created on Wed Mar 31 14:08:54 2021
 @author: robin grapin
 """
 
+# imports
 import numpy as np
 from scipy.optimize import minimize as minimize1D
 
@@ -104,7 +105,7 @@ class MOO(SurrogateBasedApplication):
             except AttributeError:  # if fun doesn't have "xlimits" attribute
                 print("Error : No bounds given")
                 return
-            
+
         x_data, y_data = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
         # n_parallel = self.options["n_parallel"]
@@ -144,7 +145,7 @@ class MOO(SurrogateBasedApplication):
             self.probleme,
             NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
-            verbose=self.options["verbose"],
+            verbose=False,
         )
         self.log(
             "Optimization done, get the front with .result.F and the set with .result.X"
@@ -285,7 +286,7 @@ class MOO(SurrogateBasedApplication):
                 hv = get_performance_indicator('hv',ref_point = np.asarray(ref))
                 EHVI = Criterion("EHVIMC", self.modeles, hv = hv, points = 100*self.ny, random_state = self.options["random_state"])
             self.obj_k = lambda x :  - EHVI(x)
-            
+
         if criter == "WB2S":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])

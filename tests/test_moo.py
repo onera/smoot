@@ -21,7 +21,6 @@ from smoot.zdt import ZDT
 from smt.sampling_methods import LHS
 from smt.problems import Branin, Rosenbrock
 from smt.utils.sm_test_case import SMTestCase
-#from smt.surrogate_models import KRG
 
 from pymoo.factory import get_performance_indicator
 
