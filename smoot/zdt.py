@@ -20,7 +20,6 @@ class ZDT(Problem):
         f2 : y,z -> g(z)h(f1(y),g(z))
     xbounds = [0,1]**n
     """
-
     def _initialize(self):
         self.options.declare("ndim", 2, types=int)
         self.options.declare("name", "ZDT", types=str)
@@ -196,5 +195,5 @@ class ZDT(Problem):
                 else:
                     X[i, 0] = pt
         else:
-            X[:, 0] = rand.uniform(0, 1, npoints)
+            X[:,0] = rand.uniform(0, 1, npoints)
         return X, np.real(self._evaluate(X, None))

@@ -5,7 +5,6 @@ Created on Wed Mar 31 14:08:54 2021
 @author: robin grapin
 """
 
-# imports
 import numpy as np
 from scipy.optimize import minimize as minimize1D
 
@@ -56,7 +55,7 @@ class MOO(SurrogateBasedApplication):
             KRG(print_global=False),
             types=(KRG, KPLS, KPLSK, MGP),
             desc="SMT kriging-based surrogate model used internaly",
-        )  # use only for 1-objective for ego, KRG is actually always taken for MOO
+        )#use only for 1-objective for ego, KRG is actually always taken for MOO
         declare(
             "pop_size",
             100,
@@ -79,10 +78,11 @@ class MOO(SurrogateBasedApplication):
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
         self.options.declare(
-            "random_state",
-            types=(type(None), int, np.random.RandomState),
-            desc="Numpy RandomState object or seed number which controls random draws",
+            "random_state", None,
+            types=(type(None), int),
+            desc="seed number which controls random draws",
         )
+        self.seed = np.random.RandomState(self.options["random_state"])
 
     def optimize(self, fun):
         """
@@ -99,12 +99,12 @@ class MOO(SurrogateBasedApplication):
             If fun has only one objective, y = ndarray[ne, 1]
         """
         if type(self.options["xlimits"]) != np.ndarray:
-            try:
+            try :
                 self.options["xlimits"] = fun.xlimits
             except AttributeError:  # if fun doesn't have "xlimits" attribute
                 print("Error : No bounds given")
                 return
-
+            
         x_data, y_data = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
         # n_parallel = self.options["n_parallel"]
@@ -116,11 +116,6 @@ class MOO(SurrogateBasedApplication):
             )
             return
         self.ny = len(y_data)
-        if self.ny > 2 and self.options["criterion"] == "PI":
-            self.log(
-                "PI is not available for more than 2 objectives, criterion will be switched to EHVI"
-            )
-            self.options["criterion"] = "EHVI"
 
         # obtaining models for each objective
         self.modelize(x_data, y_data)
@@ -273,19 +268,24 @@ class MOO(SurrogateBasedApplication):
             return X[i, :]
 
         if criter == "PI":
-            PI = Criterion("PI", self.modeles)
+            if self.ny == 2:
+                PI = Criterion("PI", self.modeles)
+            else :
+                PI = Criterion("PIMC", self.modeles,points = 100*self.ny, random_state = self.options["random_state"])
             self.obj_k = lambda x: -PI(x)
+            
         if criter == "EHVI":
             ydata = np.transpose(
-                np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
-            )[0]
+                    np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
+                )[0]
             ref = [ydata[:, i].max() + 1 for i in range(self.ny)]
             if self.ny == 2:
                 EHVI = Criterion("EHVI", self.modeles, ref)
-            else:
-                hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
-                EHVI = Criterion("EHVIMC", self.modeles, hv=hv, points=100)
-            self.obj_k = lambda x: -EHVI(x)
+            else :
+                hv = get_performance_indicator('hv',ref_point = np.asarray(ref))
+                EHVI = Criterion("EHVIMC", self.modeles, hv = hv, points = 100*self.ny, random_state = self.options["random_state"])
+            self.obj_k = lambda x :  - EHVI(x)
+            
         if criter == "WB2S":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
@@ -295,38 +295,32 @@ class MOO(SurrogateBasedApplication):
             self.obj_k_inter = lambda x: -EHVI(x)
             xstart_inter = np.zeros(self.ndim)
             bounds = self.options["xlimits"]
-            rand = np.random.RandomState(self.options["random_state"])
             for i in range(self.ndim):
-                xstart_inter[i] = rand.uniform(*bounds[i])
+                xstart_inter[i] = self.seed.uniform(*bounds[i])
             xmax = minimize1D(self.obj_k_inter, xstart_inter, bounds=bounds).x
             EHVImax = EHVI(xmax)
-            self.log("EHVImax found " + str(EHVImax))
+            self.log("EHVImax found "+str(EHVImax))
             if EHVImax == 0:
                 s = 1
             else:
                 moyennes = [mod.predict_values for mod in self.modeles]
                 beta = 100  # to be discussed
-                s = (
-                    beta
-                    * sum(
+                s = beta* sum(
                         [
                             abs(moy(np.asarray(xmax).reshape(1, -1))[0][0])
                             for moy in moyennes
                         ]
-                    )
-                    / EHVImax
-                )
+                    )/ EHVImax
             WB2S = Criterion("WB2S", self.modeles, ref, s)
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)
         bounds = self.options["xlimits"]
-        rando = np.random.RandomState(self.options["random_state"])
         for i in range(self.ndim):
-            xstart[i] = rando.uniform(*bounds[i])
-        x_opt = minimize1D(self.obj_k, xstart, bounds=bounds).x
-        self.log("x_opt : " + str(x_opt))
-        self.log("criterion value : " + str(self.obj_k(x_opt)))
+            xstart[i] = self.seed.uniform(*bounds[i])
+        x_opt =  minimize1D(self.obj_k, xstart, bounds=bounds).x
+        self.log("x_opt : "+str( x_opt))
+        self.log("criterion value : "+str( self.obj_k(x_opt)))
         return x_opt
 
     def log(self, msg):
