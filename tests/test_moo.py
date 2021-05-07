@@ -28,6 +28,7 @@ from pymoo.factory import get_performance_indicator
 class TestMOO(SMTestCase):
 
     plot = None
+
     def test_rosenbrock_2Dto3D(self):
         n_iter = 30
         fun1 = Rosenbrock(ndim=2)
