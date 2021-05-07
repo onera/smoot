@@ -5,15 +5,13 @@ Created on Wed Mar 31 14:08:54 2021
 @author: robin grapin
 """
 
-# imports
 import numpy as np
-from random import uniform
-
 from scipy.optimize import minimize as minimize1D
 
 from pymoo.algorithms.nsga2 import NSGA2
 from pymoo.model.problem import Problem
 from pymoo.optimize import minimize
+from pymoo.factory import get_performance_indicator
 
 from smt.applications.application import SurrogateBasedApplication
 from smt.surrogate_models import KPLS, KRG, KPLSK, MGP
@@ -76,14 +74,22 @@ class MOO(SurrogateBasedApplication):
             types=float,
             desc="importance ratio of design space in comparation to objective space when chosing a point with GA",
         )
+        declare(
+            "n_opt",
+            10,
+            types=int,
+            desc="each step's number of criterion's optimizations starting from different points",
+        )
         declare("verbose", False, types=bool, desc="Print computation information")
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
         self.options.declare(
             "random_state",
-            types=(type(None), int, np.random.RandomState),
-            desc="Numpy RandomState object or seed number which controls random draws",
+            None,
+            types=(type(None), int),
+            desc="seed number which controls random draws",
         )
+        self.seed = np.random.RandomState(self.options["random_state"])
 
     def optimize(self, fun):
         """
@@ -117,11 +123,6 @@ class MOO(SurrogateBasedApplication):
             )
             return
         self.ny = len(y_data)
-        if self.ny > 2 and self.options["criterion"] != "GA":
-            self.log(
-                "Only GA is available for more than 2 objectives at the moment, criterion will be switched"
-            )
-            self.options["criterion"] = "GA"
 
         # obtaining models for each objective
         self.modelize(x_data, y_data)
@@ -150,7 +151,6 @@ class MOO(SurrogateBasedApplication):
             self.probleme,
             NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
-            verbose=False,
         )
         self.log(
             "Optimization done, get the front with .result.F and the set with .result.X"
@@ -167,7 +167,7 @@ class MOO(SurrogateBasedApplication):
         xt : array of arrays
             sampling points in the design space.
         yt : list of arrays
-            yt[i] = f1(xt).
+            yt[i] = fi(xt).
 
         """
         if (
@@ -271,18 +271,38 @@ class MOO(SurrogateBasedApplication):
                 for j in range(X.shape[0])
             ]
             i = dispersion.index(max(dispersion))
-            return X[i, :]  # , Y[i,:]
+            return X[i, :]
 
         if criter == "PI":
-            PI = Criterion("PI", self.modeles)
+            if self.ny == 2:
+                PI = Criterion("PI", self.modeles)
+            else:
+                PI = Criterion(
+                    "PIMC",
+                    self.modeles,
+                    points=100 * self.ny,
+                    random_state=self.options["random_state"],
+                )
             self.obj_k = lambda x: -PI(x)
+
         if criter == "EHVI":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
-            ref = [ydata[:, 0].max() + 1, ydata[:, 1].max() + 1]
-            EHVI = Criterion("EHVI", self.modeles, ref)
+            ref = [ydata[:, i].max() + 1 for i in range(self.ny)]
+            if self.ny == 2:
+                EHVI = Criterion("EHVI", self.modeles, ref)
+            else:
+                hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+                EHVI = Criterion(
+                    "EHVIMC",
+                    self.modeles,
+                    hv=hv,
+                    points=100 * self.ny,
+                    random_state=self.options["random_state"],
+                )
             self.obj_k = lambda x: -EHVI(x)
+
         if criter == "WB2S":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
@@ -293,9 +313,10 @@ class MOO(SurrogateBasedApplication):
             xstart_inter = np.zeros(self.ndim)
             bounds = self.options["xlimits"]
             for i in range(self.ndim):
-                xstart_inter[i] = uniform(*bounds[i])
+                xstart_inter[i] = self.seed.uniform(*bounds[i])
             xmax = minimize1D(self.obj_k_inter, xstart_inter, bounds=bounds).x
             EHVImax = EHVI(xmax)
+            self.log("EHVImax found " + str(EHVImax))
             if EHVImax == 0:
                 s = 1
             else:
@@ -311,15 +332,23 @@ class MOO(SurrogateBasedApplication):
                     )
                     / EHVImax
                 )
-
             WB2S = Criterion("WB2S", self.modeles, ref, s)
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)
-        bounds = self.options["xlimits"]
-        for i in range(self.ndim):
-            xstart[i] = uniform(*bounds[i])
-        return minimize1D(self.obj_k, xstart, bounds=bounds).x
+        x_opts = []
+        for i in range(
+            self.options["n_opt"]
+        ):  # in order to have not only 0-valued points
+            bounds = self.options["xlimits"]
+            for i in range(self.ndim):
+                xstart[i] = self.seed.uniform(*bounds[i])
+            x_opts.append(minimize1D(self.obj_k, xstart, bounds=bounds).x)
+        y_opts = [-self.obj_k(x_opt) for x_opt in x_opts]
+        x_opt = x_opts[y_opts.index(max(y_opts))]
+        self.log("criterion max value : " + str(max(y_opts)))
+        self.log("xopt : " + str(x_opt))
+        return x_opt
 
     def log(self, msg):
         if self.options["verbose"]:
