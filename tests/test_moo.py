@@ -35,7 +35,7 @@ class TestMOO(SMTestCase):
         fun2 = Rosenbrock(ndim=2)
         fun = lambda x: [fun1(x), fun1(x), fun2(x)]
         xlimits = fun1.xlimits
-        criterion = "EHVI"
+        criterion = "GA"
 
         mo = MOO(
             n_iter=n_iter,
