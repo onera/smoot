@@ -74,6 +74,12 @@ class MOO(SurrogateBasedApplication):
             types=float,
             desc="importance ratio of design space in comparation to objective space when chosing a point with GA",
         )
+        declare(
+            "n_opt",
+            10,
+            types=int,
+            desc="each step's number of criterion's optimizations starting from different points",
+        )
         declare("verbose", False, types=bool, desc="Print computation information")
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
@@ -330,12 +336,18 @@ class MOO(SurrogateBasedApplication):
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)
-        bounds = self.options["xlimits"]
-        for i in range(self.ndim):
-            xstart[i] = self.seed.uniform(*bounds[i])
-        x_opt = minimize1D(self.obj_k, xstart, bounds=bounds).x
-        self.log("x_opt : " + str(x_opt))
-        self.log("criterion value : " + str(self.obj_k(x_opt)))
+        x_opts = []
+        for i in range(
+            self.options["n_opt"]
+        ):  # in order to have not only 0-valued points
+            bounds = self.options["xlimits"]
+            for i in range(self.ndim):
+                xstart[i] = self.seed.uniform(*bounds[i])
+            x_opts.append(minimize1D(self.obj_k, xstart, bounds=bounds).x)
+        y_opts = [-self.obj_k(x_opt) for x_opt in x_opts]
+        x_opt = x_opts[y_opts.index(max(y_opts))]
+        self.log("criterion max value : " + str(max(y_opts)))
+        self.log("xopt : " + str(x_opt))
         return x_opt
 
     def log(self, msg):
