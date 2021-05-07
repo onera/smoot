@@ -28,7 +28,6 @@ from pymoo.factory import get_performance_indicator
 class TestMOO(SMTestCase):
 
     plot = None
-
     def test_rosenbrock_2Dto3D(self):
         n_iter = 30
         fun1 = Rosenbrock(ndim=2)
@@ -82,7 +81,7 @@ class TestMOO(SMTestCase):
         self.assertAlmostEqual(0.39, float(y_opt), delta=1)
 
     def test_zdt(self, type=1, criterion="WB2S", ndim=2):
-        n_iter = 30
+        n_iter = 20
         fun = ZDT(type=type, ndim=ndim)
 
         mo = MOO(
@@ -98,7 +97,7 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 1.0)
+        self.assertLess(dist, 1.1)
 
     def test_zdt_2_EHVI(self):
         self.test_zdt(type=2, criterion="EHVI")
@@ -115,7 +114,7 @@ class TestMOO(SMTestCase):
         sampling = LHS(xlimits=xlimits, random_state=1)
         xt = sampling(20)  # generating data as if it were known data
         yt = fun(xt)  # idem : "known" datapoint for training
-        mo = MOO(n_iter=30, criterion="GA", xdoe=xt, ydoe=yt, random_state=42)
+        mo = MOO(n_iter=20, criterion="GA", xdoe=xt, ydoe=yt, random_state=42)
         print("running test ZDT with known training points")
         start = time.time()
         mo.optimize(fun=fun)
