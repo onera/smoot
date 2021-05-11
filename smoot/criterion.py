@@ -120,7 +120,6 @@ class Criterion(object):
         pi_x : float
             PI(x) : probability that x is an improvement € [0,1]
         """
-
         pareto_front = Criterion._compute_pareto(self.models)  #
         pareto_front.sort(key=lambda x: x[0])
         moyennes = [mod.predict_values for mod in self.models]

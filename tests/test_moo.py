@@ -30,12 +30,12 @@ class TestMOO(SMTestCase):
     plot = None
 
     def test_rosenbrock_2Dto3D(self):
-        n_iter = 30
+        n_iter = 20
         fun1 = Rosenbrock(ndim=2)
         fun2 = Rosenbrock(ndim=2)
         fun = lambda x: [fun1(x), fun1(x), fun2(x)]
         xlimits = fun1.xlimits
-        criterion = "GA"
+        criterion = "PI"
 
         mo = MOO(
             n_iter=n_iter,
@@ -57,7 +57,7 @@ class TestMOO(SMTestCase):
         self.assertTrue(np.allclose([[0, 0, 0]], y_opt, rtol=1))
 
     def test_Branin(self):
-        n_iter = 30
+        n_iter = 20
         fun = Branin()
         criterion = "EI"
 
@@ -70,7 +70,7 @@ class TestMOO(SMTestCase):
         print("running test Branin 2D -> 1D")
         start = time.time()
         mo.optimize(fun=fun)
-        x_opt, y_opt = mo.result.X[0], mo.result.F[0]
+        x_opt, y_opt = mo.result.X[0][0], mo.result.F[0][0]
         print("x_opt :", x_opt)
         print("y_opt :", y_opt)
         print("seconds taken Branin: ", time.time() - start, "\n")
@@ -98,7 +98,7 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 1.1)
+        self.assertLess(dist, 1)
 
     def test_zdt_2_EHVI(self):
         self.test_zdt(type=2, criterion="EHVI")
@@ -124,7 +124,7 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 2.0)
+        self.assertLess(dist, 1)
 
 
 if __name__ == "__main__":
