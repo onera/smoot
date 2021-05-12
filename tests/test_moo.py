@@ -115,7 +115,7 @@ class TestMOO(SMTestCase):
         sampling = LHS(xlimits=xlimits, random_state=1)
         xt = sampling(20)  # generating data as if it were known data
         yt = fun(xt)  # idem : "known" datapoint for training
-        mo = MOO(n_iter=20, criterion="GA", xdoe=xt, ydoe=yt, random_state=42)
+        mo = MOO(n_iter=20, criterion="PI", xdoe=xt, ydoe=yt, random_state=42)
         print("running test ZDT with known training points")
         start = time.time()
         mo.optimize(fun=fun)
