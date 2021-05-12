@@ -124,7 +124,7 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 1)
+        self.assertLess(dist, 1.5)
 
 
 if __name__ == "__main__":
