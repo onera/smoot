@@ -103,10 +103,10 @@ class TestMOO(SMTestCase):
     def test_zdt_2_EHVI(self):
         self.test_zdt(type=2, criterion="EHVI")
 
-    def test_zdt_3_EHVI(self):
+    def test_zdt_3(self):
         self.test_zdt(type=3, criterion="PI")
 
-    def test_zdt_2_EHVI_3Dto2D(self):
+    def test_zdt_2_3Dto2D(self):
         self.test_zdt(type=2, criterion="EHVI", ndim=3)
 
     def test_train_pts_known(self):
