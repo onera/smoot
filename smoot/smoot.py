@@ -89,7 +89,6 @@ class MOO(SurrogateBasedApplication):
             types=(type(None), int),
             desc="seed number which controls random draws",
         )
-        self.seed = np.random.RandomState(self.options["random_state"])
 
     def optimize(self, fun):
         """
@@ -112,6 +111,7 @@ class MOO(SurrogateBasedApplication):
                 print("Error : No bounds given")
                 return
 
+        self.seed = np.random.RandomState(self.options["random_state"])
         x_data, y_data = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
         # n_parallel = self.options["n_parallel"]
@@ -150,6 +150,7 @@ class MOO(SurrogateBasedApplication):
             self.def_prob(),
             NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
+            seed=self.options["random_state"],
         )
         self.log(
             "Optimization done, get the front with .result.F and the set with .result.X"
