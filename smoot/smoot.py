@@ -76,7 +76,7 @@ class MOO(SurrogateBasedApplication):
         )
         declare(
             "n_opt",
-            10,
+            20,
             types=int,
             desc="each step's number of criterion's optimizations starting from different points",
         )
@@ -89,7 +89,6 @@ class MOO(SurrogateBasedApplication):
             types=(type(None), int),
             desc="seed number which controls random draws",
         )
-        self.seed = np.random.RandomState(self.options["random_state"])
 
     def optimize(self, fun):
         """
@@ -112,6 +111,7 @@ class MOO(SurrogateBasedApplication):
                 print("Error : No bounds given")
                 return
 
+        self.seed = np.random.RandomState(self.options["random_state"])
         x_data, y_data = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
         # n_parallel = self.options["n_parallel"]
@@ -126,7 +126,6 @@ class MOO(SurrogateBasedApplication):
 
         # obtaining models for each objective
         self.modelize(x_data, y_data)
-        self.probleme = self.def_prob()
 
         if type(y_data) != list:
             y_data = list(y_data)
@@ -148,9 +147,10 @@ class MOO(SurrogateBasedApplication):
 
         self.log("Model is well refined, NSGA2 is running...")
         self.result = minimize(
-            self.probleme,
+            self.def_prob(),
             NSGA2(pop_size=self.options["pop_size"], seed=self.options["random_state"]),
             ("n_gen", self.options["n_gen"]),
+            seed=self.options["random_state"],
         )
         self.log(
             "Optimization done, get the front with .result.F and the set with .result.X"
@@ -243,7 +243,7 @@ class MOO(SurrogateBasedApplication):
 
         if criter == "GA":
             res = minimize(
-                self.probleme,
+                self.def_prob(),
                 NSGA2(
                     pop_size=self.options["pop_size"], seed=self.options["random_state"]
                 ),
@@ -336,17 +336,14 @@ class MOO(SurrogateBasedApplication):
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)
-        x_opts = []
-        for i in range(
-            self.options["n_opt"]
-        ):  # in order to have not only 0-valued points
-            bounds = self.options["xlimits"]
-            for i in range(self.ndim):
-                xstart[i] = self.seed.uniform(*bounds[i])
-            x_opts.append(minimize1D(self.obj_k, xstart, bounds=bounds).x)
-        y_opts = [-self.obj_k(x_opt) for x_opt in x_opts]
-        x_opt = x_opts[y_opts.index(max(y_opts))]
-        self.log("criterion max value : " + str(max(y_opts)))
+        bounds = self.options["xlimits"]
+        for i in range(self.options["n_opt"]):  # in order to have less 0-valued points
+            for j in range(self.ndim):
+                xstart[j] = self.seed.uniform(*bounds[j])
+            x_opt = minimize1D(self.obj_k, xstart, bounds=bounds).x
+            if self.obj_k(x_opt) < 0:
+                break
+        self.log("criterion max value : " + str(-self.obj_k(x_opt)))
         self.log("xopt : " + str(x_opt))
         return x_opt
 
