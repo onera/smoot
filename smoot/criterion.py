@@ -328,3 +328,19 @@ class Criterion(object):
             if battu:
                 return True
         return False
+
+    @staticmethod
+    def prob_of_feasability(x, const_modeles):
+        """
+        Product of the probabilities that x is a feasible solution,
+        assuming that the constraints are independents, and modelized by
+        gaussian models.
+        """
+        means = [mod.predict_values for mod in const_modeles]
+        var = [mod.predict_variances for mod in const_modeles]
+        x = np.asarray(x).reshape(1, -1)
+        probs = [
+            norm.cdf(-means[i](x)[0][0] / var[i](x)[0][0])
+            for i in range(len(const_modeles))
+        ]
+        return np.prod(probs)
