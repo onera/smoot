@@ -7,6 +7,7 @@ Created on Wed Mar 31 14:08:54 2021
 
 import numpy as np
 from scipy.optimize import minimize as minimize1D
+from scipy.stats import norm
 
 from pymoo.algorithms.nsga2 import NSGA2
 from pymoo.model.problem import Problem
@@ -26,10 +27,15 @@ class MOO(SurrogateBasedApplication):
         super()._initialize()
         declare = self.options.declare
 
-        # declare("fun", None, types=FunctionType, desc="Function to minimize")
+        declare(
+            "const",
+            [],
+            types=list,
+            desc="constraints functions of the problem, should be <=0 constraints",
+        )
         declare(
             "criterion",
-            "PI",
+            "EHVI",
             types=str,
             values=["PI", "EHVI", "GA", "WB2S"],
             desc="criterion for next evaluation point determination: Expected Improvement, \
@@ -44,12 +50,6 @@ class MOO(SurrogateBasedApplication):
         )
         declare("xlimits", None, types=np.ndarray, desc="Bounds of function fun inputs")
         declare("n_start", 20, types=int, desc="Number of optimization start points")
-        declare(
-            "n_parallel",
-            1,
-            types=int,
-            desc="Number of parallel samples to compute using qEI criterion",
-        )
         declare(
             "surrogate",
             KRG(print_global=False),
@@ -83,6 +83,9 @@ class MOO(SurrogateBasedApplication):
         declare("verbose", False, types=bool, desc="Print computation information")
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
+        declare(
+            "ydoe_c", None, types=np.ndarray, desc="initial doe outputs for constraints"
+        )
         self.options.declare(
             "random_state",
             None,
@@ -112,20 +115,24 @@ class MOO(SurrogateBasedApplication):
                 return
 
         self.seed = np.random.RandomState(self.options["random_state"])
-        x_data, y_data = self._setup_optimizer(fun)
+        self.n_const = len(self.options["const"])
+        x_data, y_data, y_data_c = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
-        # n_parallel = self.options["n_parallel"]
+
         if isinstance(y_data[0][0], float):
             self.log("EGO will be used as there is only 1 objective")
+            if self.n_const > 0:
+                self.log("EGO doesn't take constraints in account")
             self.use_ego(fun, x_data, y_data)
             self.log(
                 "Optimization done, get the front with .result.F and the set with .result.X"
             )
             return
+
         self.ny = len(y_data)
 
         # obtaining models for each objective
-        self.modelize(x_data, y_data)
+        self.modelize(x_data, y_data, y_data_c)
 
         if type(y_data) != list:
             y_data = list(y_data)
@@ -143,7 +150,12 @@ class MOO(SurrogateBasedApplication):
                 y_data[i] = np.atleast_2d(np.append(y_data[i], new_y[i], axis=0))
             x_data = np.atleast_2d(np.append(x_data, np.array([new_x]), axis=0))
 
-            self.modelize(x_data, y_data)
+            # update the constraints
+            for i in range(self.n_const):
+                new_y_c_i = np.array([self.options["const"][i](new_x)])
+                y_data_c[i] = np.append(y_data_c[i], new_y_c_i, axis=0)
+
+            self.modelize(x_data, y_data, y_data_c)
 
         self.log("Model is well refined, NSGA2 is running...")
         self.result = minimize(
@@ -170,19 +182,23 @@ class MOO(SurrogateBasedApplication):
             yt[i] = fi(xt).
 
         """
-        if (
-            type(self.options["xdoe"]) == np.ndarray
-            and type(self.options["ydoe"]) == np.ndarray
-        ):
-            return self.options["xdoe"], self.options["ydoe"]
-        sampling = LHS(
-            xlimits=self.options["xlimits"], random_state=self.options["random_state"]
-        )
-        xt = sampling(self.options["n_start"])
-        yt = fun(xt)
-        return xt, yt
+        xt, yt, yc = self.options["xdoe"], self.options["ydoe"], self.options["ydoe_c"]
+        if xt is None and not (yt is None and yc is None):
+            print("xdoe must be an array if you want to use ydoe or ydoe_c")
+            yt, yc = None, None
+        if xt is None:
+            sampling = LHS(
+                xlimits=self.options["xlimits"],
+                random_state=self.options["random_state"],
+            )
+            xt = sampling(self.options["n_start"])
+        if yt is None:
+            yt = fun(xt)
+        if yc is None and self.n_const > 0:
+            yc = [np.array([con(x) for x in xt]) for con in self.options["const"]]
+        return xt, yt, yc
 
-    def modelize(self, xt, yt):
+    def modelize(self, xt, yt, yt_const=None):
         """
         Creates and train a krige model with the given datapoints
 
@@ -192,6 +208,8 @@ class MOO(SurrogateBasedApplication):
             Design space coordinates of the training points.
         yt : ndarray[n_points, n_objectives]
             Training outputs.
+        yt_const : list of ndarray[nt,ny]
+            constraints training outputs
         """
         self.modeles = []
         for iny in range(self.ny):
@@ -199,6 +217,14 @@ class MOO(SurrogateBasedApplication):
             t.set_training_values(xt, yt[iny])
             t.train()
             self.modeles.append(t)
+
+        self.const_modeles = []
+        if not (yt_const is None):
+            for iny in range(self.n_const):
+                t = KRG(print_global=False)
+                t.set_training_values(xt, yt_const[iny])
+                t.train()
+                self.const_modeles.append(t)
 
     def def_prob(self):
         """
@@ -212,13 +238,15 @@ class MOO(SurrogateBasedApplication):
         n_var = self.ndim
         xbounds = self.options["xlimits"]
         modelizations = self.modeles
+        n_const = self.n_const
+        const_modeles = self.const_modeles
 
         class MyProblem(Problem):
             def __init__(self):
                 super().__init__(
                     n_var=n_var,
                     n_obj=n_obj,
-                    n_constr=0,
+                    n_constr=n_const,
                     xl=np.asarray([i[0] for i in xbounds]),
                     xu=np.asarray([i[1] for i in xbounds]),
                     elementwise_evaluation=True,
@@ -226,7 +254,9 @@ class MOO(SurrogateBasedApplication):
 
             def _evaluate(self, x, out, *args, **kwargs):
                 xx = np.asarray(x).reshape(1, -1)  # le modèle prend un array en entrée
-                out["F"] = [i.predict_values(xx)[0][0] for i in modelizations]
+                out["F"] = [f.predict_values(xx)[0][0] for f in modelizations]
+                if n_const > 0:
+                    out["G"] = [g.predict_values(xx)[0][0] for g in const_modeles]
 
         return MyProblem()
 
@@ -340,12 +370,41 @@ class MOO(SurrogateBasedApplication):
         for i in range(self.options["n_opt"]):  # in order to have less 0-valued points
             for j in range(self.ndim):
                 xstart[j] = self.seed.uniform(*bounds[j])
-            x_opt = minimize1D(self.obj_k, xstart, bounds=bounds).x
+            x_opt = minimize1D(self.penal(self.obj_k), xstart, bounds=bounds).x
             if self.obj_k(x_opt) < 0:
                 break
         self.log("criterion max value : " + str(-self.obj_k(x_opt)))
         self.log("xopt : " + str(x_opt))
+        for i in range(self.n_const):
+            self.log(
+                "constraint "
+                + str(i)
+                + " estimated value : "
+                + str(self.const_modeles[i].predict_values(np.array([x_opt]))[0][0])
+            )
         return x_opt
+
+    def penal(self, f):
+        """
+        "Penalized through weightening" criterion by the probability
+        of feasability at each point
+
+        Parameters
+        ----------
+        f : function
+            Criterion to minimize (because f : x -> - criterion(x) ).
+
+        Returns
+        -------
+        function
+            weighted function.
+        """
+        if self.n_const == 0:
+            return f
+        return lambda x: (f(x) - 0.01) * Criterion.prob_of_feasability(
+            x, self.const_modeles
+        )
+        # 0.01 because the criterion is often equal to 0, so it favorises the reachable points
 
     def log(self, msg):
         if self.options["verbose"]:
@@ -373,7 +432,6 @@ class MOO(SurrogateBasedApplication):
             criterion="EI",
             n_start=self.options["n_start"],
             xlimits=self.options["xlimits"],
-            n_parallel=self.options["n_parallel"],
             verbose=self.options["verbose"],
             surrogate=self.options["surrogate"],
         )
