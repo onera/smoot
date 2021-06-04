@@ -33,7 +33,7 @@ class TestMOO(SMTestCase):
         n_iter = 15
         fun1 = Rosenbrock(ndim=2)
         fun2 = Rosenbrock(ndim=2)
-        fun = lambda x: [fun1(x), fun1(x), fun2(x)]
+        fun = lambda x: np.transpose([fun1(x), fun1(x), fun2(x)])[0]
         xlimits = fun1.xlimits
         criterion = "PI"
 
@@ -81,7 +81,7 @@ class TestMOO(SMTestCase):
         )
         self.assertAlmostEqual(0.39, float(y_opt), delta=1)
 
-    def test_zdt(self, type=1, criterion="WB2S", ndim=2, n_iter=10):
+    def test_zdt(self, type=1, criterion="EHVI", ndim=2, n_iter=10):
         fun = ZDT(type=type, ndim=ndim)
 
         mo = MOO(
@@ -93,14 +93,15 @@ class TestMOO(SMTestCase):
         start = time.time()
         mo.optimize(fun=fun)
         print("seconds taken :", time.time() - start)
-        exact = np.transpose(fun.pareto(random_state=1)[1])[0]
+        exact = fun.pareto(random_state=1)[1]
         gd = get_performance_indicator("gd", exact)
+        print(mo.result.F.shape)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
         self.assertLess(dist, 1.5)
 
-    def test_zdt_2_EHVI(self):
-        self.test_zdt(type=2, criterion="EHVI")
+    def test_zdt_2(self):
+        self.test_zdt(type=2, criterion="WB2S")
 
     def test_zdt_3(self, n_iter=20):
         self.test_zdt(type=3, criterion="PI")
@@ -119,7 +120,7 @@ class TestMOO(SMTestCase):
         start = time.time()
         mo.optimize(fun=fun)
         print("seconds taken :", time.time() - start)
-        exact = np.transpose(fun.pareto(random_state=1)[1])[0]
+        exact = fun.pareto(random_state=1)[1]
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")

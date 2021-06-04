@@ -13,7 +13,7 @@ class ZDT(Problem):
     """
     ZDT toolkit
     x = {x1.. xn}
-    y = {x1.. xj} = {y1.. yj} #for simplicity, here, j = Int(n/2)
+    y = {x1.. xj} = {y1.. yj}
     z = {x(j+1).. xn} = {z1.. zk}
     Testing functions with the shape :
         f1 : y -> f1(y)
@@ -31,7 +31,7 @@ class ZDT(Problem):
     def _setup(self):
         self.xlimits[:, 1] = 1.0
 
-    def _evaluate(self, x, kx):  # kx useless
+    def _evaluate(self, x, kx=None):
         """
         Arguments
         ---------
@@ -45,7 +45,7 @@ class ZDT(Problem):
         """
         ne, nx = x.shape
         j = min(1, nx - 1)  # if one entry then no bug
-        f1 = np.zeros((ne, 1), complex)
+        f1 = np.zeros((ne, 1))
 
         if self.options["type"] < 5:
             f1[:, 0] = x[:, 0]
@@ -53,7 +53,7 @@ class ZDT(Problem):
             f1[:, 0] = 1 - np.exp(-4 * x[:, 0]) * np.sin(6 * np.pi * x[:, 0]) ** 6
 
         # g
-        g = np.zeros((ne, 1), complex)
+        g = np.zeros((ne, 1))
         if self.options["type"] < 4:
             for i in range(ne):
                 g[i, 0] = 1 + 9 / (nx - j) * sum(x[i, j:nx])
@@ -69,7 +69,7 @@ class ZDT(Problem):
                 g[i, 0] = 1 + 9 * (sum(x[i, j:nx]) / (nx - j)) ** 0.25
 
         # h
-        h = np.zeros((ne, 1), complex)
+        h = np.zeros((ne, 1))
         if self.options["type"] == 1 or self.options["type"] == 4:
             for i in range(ne):
                 h[i, 0] = 1 - np.sqrt(f1[i, 0] / g[i, 0])
@@ -84,76 +84,7 @@ class ZDT(Problem):
                     - f1[i, 0] / g[i, 0] * np.sin(10 * np.pi * f1[i, 0])
                 )
 
-        if kx == None:
-            return f1, g * h  # problem class make of it an array anyway
-        else:
-
-            if self.options["type"] < 5:
-                f1[:, 0] = (kx == 0) * np.ones(ne)
-            else:
-                f1[:, 0] = (
-                    (kx == 0)
-                    * (
-                        4 * np.sin(6 * np.pi * x[:, 0]) ** 6
-                        - 36
-                        * np.pi
-                        * np.cos(6 * np.pi * x[:, 0])
-                        * np.sin(6 * np.pi * x[:, 0]) ** 5
-                    )
-                    * np.exp(-4 * x[:, 0])
-                )
-
-            d_g = np.zeros((ne, 1), complex)
-            if self.options["type"] < 4:
-                for i in range(ne):
-                    d_g[i, 0] = 9 / (nx - j) * (kx != 0)
-            elif self.options["type"] == 4:
-                for i in range(ne):
-                    d_g[i, 0] = (kx != 0) * (
-                        2 * x[i, kx] + 40 * np.pi * np.sin(4 * np.pi * x[i, kx])
-                    )
-            else:
-                for i in range(ne):
-                    d_g[i, 0] = (kx != 0) * 9 / 4 / (nx - j) ** 0.25 / x[i, kx] ** 0.75
-
-            d_h = np.zeros((ne, 1), complex)
-            if self.options["type"] == 1 or self.options["type"] == 4:
-                for i in range(ne):
-                    d_h[i, 0] = (
-                        -0.5
-                        * (g[i, 0] * (kx == 0) - d_g[i, 0] * (kx != 0))
-                        / g[i, 0] ** 1.5
-                        / x[i, 0] ** 0.5
-                    )
-            elif self.options["type"] == 2 or self.options["type"] == 5:
-                for i in range(ne):
-                    d_h[i, 0] = (
-                        -2
-                        * (g[i, 0] * (kx == 0) - d_g[i, 0] * (kx != 0))
-                        / g[i, 0] ** 3
-                        * x[i, 0]
-                    )
-            else:
-                for i in range(ne):
-                    d_h[i, 0] = (
-                        -0.5
-                        * (g[i, 0] * (kx == 0) - d_g[i, 0] * (kx != 0))
-                        / g[i, 0] ** 1.5
-                        / x[i, 0] ** 0.5
-                    )
-                    d_h[i, 0] -= (
-                        x[i, 0] ** 2
-                        * 10
-                        * np.pi
-                        * np.cos(10 * np.pi * x[1, 0])
-                        / g[i, 0]
-                    )
-                    d_h[i, 0] -= (
-                        (g[i, 0] * (kx == 0) - d_g[i, 0] * (kx != 0))
-                        * np.sin(10 * np.pi * x[1, 0])
-                        / g[i, 0] ** 2
-                    )
-            return f1, d_g * h + g * d_h
+        return np.hstack((f1, g * h))
 
     def pareto(self, npoints=300, random_state=None):
         """
@@ -197,4 +128,4 @@ class ZDT(Problem):
                     X[i, 0] = pt
         else:
             X[:, 0] = rand.uniform(0, 1, npoints)
-        return X, np.real(self._evaluate(X, None))
+        return X, self._evaluate(X)
