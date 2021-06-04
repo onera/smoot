@@ -145,6 +145,7 @@ class MOO(SurrogateBasedApplication):
             # update the constraints
             for i in range(self.n_const):
                 new_y_c_i = np.array([self.options["const"][i](np.array([new_x]))])[0]
+
                 y_data_c[i] = np.append(y_data_c[i], new_y_c_i, axis=0)
 
             self.modelize(x_data, y_data, y_data_c)
@@ -188,6 +189,7 @@ class MOO(SurrogateBasedApplication):
             yt = fun(xt)
         if yc is None and self.n_const > 0:
             yc = [np.array(con(xt)) for con in self.options["const"]]
+
         return xt, yt, yc
 
     def modelize(self, xt, yt, yt_const=None):
@@ -246,6 +248,7 @@ class MOO(SurrogateBasedApplication):
 
             def _evaluate(self, x, out, *args, **kwargs):
                 xx = np.asarray(x).reshape(1, -1)
+
                 out["F"] = [f.predict_values(xx)[0][0] for f in modelizations]
                 if n_const > 0:
                     out["G"] = [g.predict_values(xx)[0][0] for g in const_modeles]
