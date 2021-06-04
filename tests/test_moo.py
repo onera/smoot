@@ -103,8 +103,8 @@ class TestMOO(SMTestCase):
     def test_zdt_2(self):
         self.test_zdt(type=2, criterion="WB2S")
 
-    def test_zdt_3(self, n_iter=20):
-        self.test_zdt(type=3, criterion="PI")
+    def test_zdt_3(self):
+        self.test_zdt(type=3, criterion="PI", n_iter=20)
 
     def test_zdt_2_3Dto2D(self):
         self.test_zdt(type=2, criterion="EHVI", ndim=3)
