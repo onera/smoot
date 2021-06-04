@@ -3,4 +3,4 @@
 
 # smoot
 
-Surrogate-based Multi-Objective Optimization Library.
+Surrogate-based Multi-Objective Optimization Library. 
