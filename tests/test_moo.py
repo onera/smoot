@@ -98,7 +98,7 @@ class TestMOO(SMTestCase):
         print(mo.result.F.shape)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 1.5)
+        self.assertLess(dist, 2)
 
     def test_zdt_2(self):
         self.test_zdt(type=2, criterion="WB2S")
