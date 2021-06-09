@@ -31,7 +31,7 @@ class MOO(SurrogateBasedApplication):
             "const",
             [],
             types=list,
-            desc="constraints functions of the problem, should be <=0 constraints",
+            desc="constraints functions of the problem, should be <=0 constraints, taking x = ndarray[ne,nx]",
         )
         declare(
             "criterion",
@@ -50,12 +50,6 @@ class MOO(SurrogateBasedApplication):
         )
         declare("xlimits", None, types=np.ndarray, desc="Bounds of function fun inputs")
         declare("n_start", 20, types=int, desc="Number of optimization start points")
-        declare(
-            "surrogate",
-            KRG(print_global=False),
-            types=(KRG, KPLS, KPLSK, MGP),
-            desc="SMT kriging-based surrogate model used internaly",
-        )  # use only for 1-objective for ego, KRG is actually always taken for MOO
         declare(
             "pop_size",
             100,
@@ -103,8 +97,8 @@ class MOO(SurrogateBasedApplication):
         ----------
         fun : function
             function taking x=ndarray[ne,ndim],
-            returning y = [ndarray[ne, 1],ndarray[ne, 1],...]
-            where y[i][j][0] = fi(xj).
+            returning y = ndarray[ne,ny]
+            where y[i][j] = fj(xi).
             If fun has only one objective, y = ndarray[ne, 1]
         """
         if type(self.options["xlimits"]) != np.ndarray:
@@ -118,8 +112,9 @@ class MOO(SurrogateBasedApplication):
         self.n_const = len(self.options["const"])
         x_data, y_data, y_data_c = self._setup_optimizer(fun)
         self.ndim = self.options["xlimits"].shape[0]
+        self.ny = y_data.shape[-1]
 
-        if isinstance(y_data[0][0], float):
+        if self.ny == 1:
             self.log("EGO will be used as there is only 1 objective")
             if self.n_const > 0:
                 self.log("EGO doesn't take constraints in account")
@@ -128,8 +123,6 @@ class MOO(SurrogateBasedApplication):
                 "Optimization done, get the front with .result.F and the set with .result.X"
             )
             return
-
-        self.ny = len(y_data)
 
         # obtaining models for each objective
         self.modelize(x_data, y_data, y_data_c)
@@ -146,13 +139,13 @@ class MOO(SurrogateBasedApplication):
             new_y = fun(np.array([new_x]))
 
             # update model with the new point
-            for i in range(len(y_data)):
-                y_data[i] = np.atleast_2d(np.append(y_data[i], new_y[i], axis=0))
+            y_data = np.atleast_2d(np.append(y_data, new_y, axis=0))
             x_data = np.atleast_2d(np.append(x_data, np.array([new_x]), axis=0))
 
             # update the constraints
             for i in range(self.n_const):
-                new_y_c_i = np.array([self.options["const"][i](new_x)])
+                new_y_c_i = np.array([self.options["const"][i](np.array([new_x]))])[0]
+
                 y_data_c[i] = np.append(y_data_c[i], new_y_c_i, axis=0)
 
             self.modelize(x_data, y_data, y_data_c)
@@ -195,7 +188,8 @@ class MOO(SurrogateBasedApplication):
         if yt is None:
             yt = fun(xt)
         if yc is None and self.n_const > 0:
-            yc = [np.array([con(x) for x in xt]) for con in self.options["const"]]
+            yc = [np.array(con(xt)) for con in self.options["const"]]
+
         return xt, yt, yc
 
     def modelize(self, xt, yt, yt_const=None):
@@ -214,7 +208,7 @@ class MOO(SurrogateBasedApplication):
         self.modeles = []
         for iny in range(self.ny):
             t = KRG(print_global=False)
-            t.set_training_values(xt, yt[iny])
+            t.set_training_values(xt, yt[:, iny])
             t.train()
             self.modeles.append(t)
 
@@ -253,7 +247,8 @@ class MOO(SurrogateBasedApplication):
                 )
 
             def _evaluate(self, x, out, *args, **kwargs):
-                xx = np.asarray(x).reshape(1, -1)  # le modèle prend un array en entrée
+                xx = np.asarray(x).reshape(1, -1)
+
                 out["F"] = [f.predict_values(xx)[0][0] for f in modelizations]
                 if n_const > 0:
                     out["G"] = [g.predict_values(xx)[0][0] for g in const_modeles]
@@ -319,7 +314,7 @@ class MOO(SurrogateBasedApplication):
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
-            ref = [ydata[:, i].max() + 1 for i in range(self.ny)]
+            ref = [ydata[:, i].max() + 1 for i in range(self.ny)]  # nadir +1
             if self.ny == 2:
                 EHVI = Criterion("EHVI", self.modeles, ref)
             else:
@@ -433,7 +428,6 @@ class MOO(SurrogateBasedApplication):
             n_start=self.options["n_start"],
             xlimits=self.options["xlimits"],
             verbose=self.options["verbose"],
-            surrogate=self.options["surrogate"],
         )
         x_opt, y_opt, _, _, _ = ego.optimize(fun)
         self.result = Algorithm()
