@@ -430,6 +430,7 @@ class MOO(SurrogateBasedApplication):
             n_start=self.options["n_start"],
             xlimits=self.options["xlimits"],
             verbose=self.options["verbose"],
+            random_state=self.options["random_state"],
         )
         x_opt, y_opt, _, _, _ = ego.optimize(fun)
         self.result = Algorithm()
