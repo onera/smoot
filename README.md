@@ -15,13 +15,13 @@ Necessary packages : <code>pymoo</code>,<code>smt</code>
 This surrogate based multi-objective Bayesian optimizer has been created to see the performance of the WB2S criterion adapted to multi-objective problems.
 given a black box function f : **x** -> **y** with **bolds** characters as vectors, <code>smoot</code> will give an accurate approximation of the optima with few calls of f.
 
-![modeli1](ressources/f1_avant)
-![modeli2](ressources/f2_avant)
+![modeli1](ressources/f1_avant.png)
+![modeli2](ressources/f2_avant.png)
 
-![activ](ressources/wb2S_vs_ehvi)
+![activ](ressources/wb2s_vs_ehvi.png)
 
-![modeli12](ressources/f1_apres)
-![modeli22](ressources/f2_apres)
+![modeli12](ressources/f1_apres.png)
+![modeli22](ressources/f2_apres.png)
 
 ### Utilisation
 
