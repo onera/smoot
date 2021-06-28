@@ -11,22 +11,13 @@ from smoot.montecarlo import MonteCarlo
 
 class Criterion(object):
     def __init__(
-        self,
-        name,
-        models,
-        ref=None,
-        s=None,
-        hv=None,
-        bounds=None,
-        points=300,
-        random_state=None,
+        self, name, models, ref=None, s=None, hv=None, points=300, random_state=None
     ):
         self.models = models
         self.name = name
         self.ref = ref
         self.s = s
         self.hv = hv
-        self.bounds = bounds
         self.points = points
         self.random_state = random_state
 
@@ -38,11 +29,15 @@ class Criterion(object):
         if self.name == "HV":
             return self.HV(x)
         if self.name == "WB2S":
+            self.Psi = lambda l: sum(l)
             return self.WB2S(x, self.ref, self.s)
         if self.name == "EHVIMC":
             return self.EHVIMC(x)
         if self.name == "PIMC":
             return self.PIMC(x)
+        if self.name == "WB2Smax":
+            self.Psi = lambda l: max(l)
+            return self.WB2S(x, self.ref, self.s)
 
     def PIMC(self, x):
         """
@@ -233,7 +228,7 @@ class Criterion(object):
         x = np.asarray(x).reshape(1, -1)
         moyennes = [mod.predict_values for mod in self.models]
         µ = [moy(x)[0][0] for moy in moyennes]
-        y = sum(µ)
+        y = self.Psi(µ)
         if len(moyennes) == 2:
             return s * self.EHVI(x, ref) - y
         return s * self.EHVIMC(x) - y

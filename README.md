@@ -3,4 +3,28 @@
 
 # smoot
 
-Surrogate-based Multi-Objective Optimization Library. 
+## Installation
+<code>
+  git install smoot
+</code>
+
+Necessary packages : <code>pymoo</code>,<code>smt</code>
+
+## Description
+
+This surrogate based multi-objective Bayesian optimizer has been created to see the performance of the WB2S criterion adapted to multi-objective problems.
+given a black box function f : **x** -> **y** with **bolds** characters as vectors, <code>smoot</code> will give an accurate approximation of the optima with few calls of f.
+
+![modeli1](ressources/f1_avant.png)
+![modeli2](ressources/f2_avant.png)
+
+![activ](ressources/wb2s_vs_ehvi.png)
+
+![modeli12](ressources/f1_apres.png)
+![modeli22](ressources/f2_apres.png)
+
+### Utilisation
+
+Look at the Jupyter notebook in the *tutorial* folder.
+
+For additional questions, contact: robingrapin@orange.fr

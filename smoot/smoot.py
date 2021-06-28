@@ -37,17 +37,10 @@ class MOO(SurrogateBasedApplication):
             "criterion",
             "EHVI",
             types=str,
-            values=["PI", "EHVI", "GA", "WB2S"],
-            desc="criterion for next evaluation point determination: Expected Improvement, \
-            Surrogate-Based Optimization or genetic algo point",
+            values=["PI", "EHVI", "GA", "WB2S", "WB2Smax"],
+            desc="infill criterion",
         )
         declare("n_iter", 10, types=int, desc="Number of optimizer steps")
-        declare(
-            "n_max_optim",
-            20,
-            types=int,
-            desc="Maximum number of internal optimizations",
-        )
         declare("xlimits", None, types=np.ndarray, desc="Bounds of function fun inputs")
         declare("n_start", 20, types=int, desc="Number of optimization start points")
         declare(
@@ -70,9 +63,9 @@ class MOO(SurrogateBasedApplication):
         )
         declare(
             "n_opt",
-            20,
+            10,
             types=int,
-            desc="each step's number of criterion's optimizations starting from different points",
+            desc="max number of random starts for the optimization of the infill criterion",
         )
         declare("verbose", False, types=bool, desc="Print computation information")
         declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
@@ -80,7 +73,7 @@ class MOO(SurrogateBasedApplication):
         declare(
             "ydoe_c", None, types=np.ndarray, desc="initial doe outputs for constraints"
         )
-        self.options.declare(
+        declare(
             "random_state",
             None,
             types=(type(None), int),
@@ -145,7 +138,6 @@ class MOO(SurrogateBasedApplication):
             # update the constraints
             for i in range(self.n_const):
                 new_y_c_i = np.array([self.options["const"][i](np.array([new_x]))])[0]
-
                 y_data_c[i] = np.append(y_data_c[i], new_y_c_i, axis=0)
 
             self.modelize(x_data, y_data, y_data_c)
@@ -189,7 +181,6 @@ class MOO(SurrogateBasedApplication):
             yt = fun(xt)
         if yc is None and self.n_const > 0:
             yc = [np.array(con(xt)) for con in self.options["const"]]
-
         return xt, yt, yc
 
     def modelize(self, xt, yt, yt_const=None):
@@ -248,7 +239,6 @@ class MOO(SurrogateBasedApplication):
 
             def _evaluate(self, x, out, *args, **kwargs):
                 xx = np.asarray(x).reshape(1, -1)
-
                 out["F"] = [f.predict_values(xx)[0][0] for f in modelizations]
                 if n_const > 0:
                     out["G"] = [g.predict_values(xx)[0][0] for g in const_modeles]
@@ -328,7 +318,7 @@ class MOO(SurrogateBasedApplication):
                 )
             self.obj_k = lambda x: -EHVI(x)
 
-        if criter == "WB2S":
+        if criter == "WB2S" or criter == "WB2Smax":
             ydata = np.transpose(
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
@@ -346,18 +336,30 @@ class MOO(SurrogateBasedApplication):
                 s = 1
             else:
                 moyennes = [mod.predict_values for mod in self.modeles]
-                beta = 100  # to be discussed
-                s = (
-                    beta
-                    * sum(
-                        [
-                            abs(moy(np.asarray(xmax).reshape(1, -1))[0][0])
-                            for moy in moyennes
-                        ]
+                beta = 100  # hyperparameter
+                if criter == "WB2S":
+                    s = (
+                        beta
+                        * sum(
+                            [
+                                abs(moy(np.asarray(xmax).reshape(1, -1))[0][0])
+                                for moy in moyennes
+                            ]
+                        )
+                        / EHVImax
                     )
-                    / EHVImax
-                )
-            WB2S = Criterion("WB2S", self.modeles, ref, s)
+                else:  # max
+                    s = (
+                        beta
+                        * max(
+                            [
+                                abs(moy(np.asarray(xmax).reshape(1, -1))[0][0])
+                                for moy in moyennes
+                            ]
+                        )
+                        / EHVImax
+                    )
+            WB2S = Criterion(criter, self.modeles, ref, s)
             self.obj_k = lambda x: -WB2S(x)
 
         xstart = np.zeros(self.ndim)
@@ -428,6 +430,7 @@ class MOO(SurrogateBasedApplication):
             n_start=self.options["n_start"],
             xlimits=self.options["xlimits"],
             verbose=self.options["verbose"],
+            random_state=self.options["random_state"],
         )
         x_opt, y_opt, _, _, _ = ego.optimize(fun)
         self.result = Algorithm()

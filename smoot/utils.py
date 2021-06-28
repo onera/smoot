@@ -12,6 +12,112 @@ import ast
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
+import time
+from smt.sampling_methods import LHS
+from pymoo.factory import get_performance_indicator
+
+
+def write_increase_iter(
+    fun,
+    path,
+    xlimits=None,
+    reference=None,
+    n_max=10,
+    runs=5,
+    paraMOO={"pop_size": 50},
+    verbose=True,
+    indic="igd+",
+    start_seed=0,
+    criterions=["PI", "EHVI", "GA", "WB2S"],
+):
+    """
+    write a dictionnary with the results of the runs for each criterion in path.
+
+    Parameters
+    ----------
+    fun : function
+        function to optimize.
+    path : path to store datas
+        DESCRIPTION.
+    xlimits : ndarray[n_var,2], if None then it takes fun.xlimits
+        bounds limits of fun, optional
+    reference : ndarray[ n_points, n_obj], optional
+        comparison explicit pareto points or reference point if "hv" is the indicator. The default is None.
+    n_max : int
+        maximal number of points added during the enrichent process. The default is 10.
+    runs : int, optional
+        number of runs with different seeds. The default is 5.
+    paraMOO : dictionnary, optional
+        Non-default MOO parameters for the optimization. The default is {"pop_size" : 50}.
+    verbose : Bool, optional
+        If informations are given during the process. The default is True.
+    """
+    if xlimits is None:
+        xlimits = fun.xlimits
+    if reference is None and indic != "hv":
+        reference = fun.pareto()[1]
+    if indic == "hv":
+        igd = get_performance_indicator(indic, ref_point=reference)
+    else:
+        igd = get_performance_indicator(indic, reference)
+    fichier = open(path, "wb")
+    mo = MOO(xlimits=xlimits)
+    for clef, val in paraMOO.items():
+        mo.options._dict[clef] = val
+
+    def obj_profile(criterion="PI", n=n_max, seed=3):
+        """
+        Intermediate function to run for a specific criterion 1 run
+        of MOO, giving the resulting front at each iteration
+        """
+        fronts = []
+        sampling = LHS(xlimits=xlimits, random_state=seed)
+        xdoe = sampling(mo.options["n_start"])
+        mo.options["criterion"] = criterion
+        mo.options["random_state"] = seed
+        mo.options["xdoe"] = xdoe
+        mo.options["n_iter"] = 0
+        mo.optimize(fun)
+        fronts.append(mo.result.F)
+        mo.options["n_iter"] = 1
+        for i in range(1, n):
+            mo.options[
+                "xdoe"
+            ] = xdoe  # the last doe is used for the new iteration to add a point
+            mo.optimize(fun)
+            fronts.append(mo.result.F)
+            xdoe = mo.modeles[0].training_points[None][0][0]
+        dists = [igd.calc(fr) for fr in fronts]  # - to have the growth as goal
+        if verbose:
+            print("xdoe", xdoe)
+            # print("distances",dists)
+        return dists, fronts
+
+    dico_res = {crit: {} for crit in criterions}
+    # plots_moy = []
+    t_start = time.time()
+    for crit in criterions:
+        fronts_pareto = []
+        distances = []
+        if verbose:
+            print("criterion ", crit)
+        for graine in range(start_seed, start_seed + runs):
+            if verbose:
+                print("seed", graine)
+            di, fr = obj_profile(crit, n=n_max, seed=graine)
+            fronts_pareto.append(fr)
+            distances.append(di)
+        t_moy = (time.time() - t_start) / runs
+        if verbose:
+            print("average time", crit, ":", t_moy)
+        t_start = time.time()
+        dico_res[crit] = {
+            "time": t_moy,
+            "fronts": fronts_pareto.copy(),
+            "dists": distances.copy(),
+        }
+    pickle.dump(dico_res, fichier)
+    fichier.close()
 
 
 def write_results(fun, path, runs=1, paraMOO={}):
@@ -115,7 +221,6 @@ def pymoo2constr(pb):
 
         def g_equiv(x, i=i):
             output = {}
-            print("x", x)
             pb._evaluate(x, output)
             return output["G"][:, i]
 
