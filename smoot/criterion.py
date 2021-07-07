@@ -11,99 +11,40 @@ from smoot.montecarlo import MonteCarlo
 
 class Criterion(object):
     def __init__(
-        self, name, models, ref=None, s=None, hv=None, points=300, random_state=None
+        self,
+        name,
+        models,
+        ref=None,
+        s=None,
+        hv=None,
+        random_state=None,
+        subcrit=None,
+        transfo=None,
     ):
         self.models = models
         self.name = name
         self.ref = ref
         self.s = s
         self.hv = hv
-        self.points = points
+        self.points = 100 * len(models)  # maybe 100 too slow ?
         self.random_state = random_state
+        self.subcrit = subcrit
+        self.transfo = transfo
 
     def __call__(self, x):
         if self.name == "PI":
             return self.PI(x)
         if self.name == "EHVI":
-            return self.EHVI(x, self.ref)
+            return self.EHVI(x)
         if self.name == "HV":
             return self.HV(x)
         if self.name == "WB2S":
-            self.Psi = lambda l: sum(l)
-            return self.WB2S(x, self.ref, self.s)
-        if self.name == "EHVIMC":
-            return self.EHVIMC(x)
-        if self.name == "PIMC":
-            return self.PIMC(x)
-        if self.name == "WB2Smax":
-            self.Psi = lambda l: max(l)
-            return self.WB2S(x, self.ref, self.s)
-
-    def PIMC(self, x):
-        """
-        Computes PI(x) thanks to Monte-Carlo sampling.
-
-        Parameters
-        ----------
-        x : list
-            Design space vector.
-
-        Returns
-        -------
-        float
-            Improvement probability statistically calculated.
-        """
-        x = np.asarray(x).reshape(1, -1)
-        y = np.asarray(
-            [
-                mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
-                for mod in self.models
-            ]
-        )
-        pareto_front = Criterion._compute_pareto(self.models)
-        if Criterion.is_dominated(y, pareto_front):
-            return (
-                0  # the point - 3sigma is dominated, almost no chances of improvement
-            )
-        MC = MonteCarlo(random_state=self.random_state)
-        q = MC.sampling(x, self.models, self.points)
-        return (
-            self.points - sum([Criterion.is_dominated(qi, pareto_front) for qi in q])
-        ) / self.points  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
-
-    def EHVIMC(self, x):
-        """
-        Computes EHVI(x) thanks to Monte-Carlo sampling.
-
-        Parameters
-        ----------
-        x : list
-            Design space vector.
-
-        Returns
-        -------
-        float
-            Expected hypervolume improvement statistically calculated.
-        """
-        x = np.asarray(x).reshape(1, -1)
-        y = np.asarray(
-            [
-                mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
-                for mod in self.models
-            ]
-        )
-        pareto_front = Criterion._compute_pareto(self.models)
-        if Criterion.is_dominated(y, pareto_front):
-            return 0  # the point - 3sigma is dominated, no chances to improve hv
-        MC = MonteCarlo(random_state=self.random_state)
-        q = MC.sampling(x, self.models, self.points)
-        return (
-            sum([self.hv.calc(np.vstack((pareto_front, qi))) for qi in q]) / self.points
-        )  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
+            return self.WB2S(x)
 
     def PI(self, x):
         """
-        Probability of improvement of the point x for 2 objectives
+        Probability of improvement of the point x for 2 objectives.
+        If more than 2 objectives, computed using Monte-Carlo sampling instead
 
         Parameters
         ----------
@@ -115,11 +56,29 @@ class Criterion(object):
         pi_x : float
             PI(x) : probability that x is an improvement € [0,1]
         """
-        pareto_front = Criterion._compute_pareto(self.models)  #
+
+        x = np.asarray(x).reshape(1, -1)
+        pareto_front = Criterion._compute_pareto(self.models)
+
+        if len(self.models) > 2:
+            y = np.asarray(
+                [
+                    mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
+                    for mod in self.models
+                ]
+            )
+            if Criterion.is_dominated(y, pareto_front):
+                return 0  # the point - 3sigma is dominated, almost no chances of improvement
+            MC = MonteCarlo(random_state=self.random_state)
+            q = MC.sampling(x, self.models, self.points)
+            return (
+                self.points
+                - sum([Criterion.is_dominated(qi, pareto_front) for qi in q])
+            ) / self.points  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
+
         pareto_front.sort(key=lambda x: x[0])
         moyennes = [mod.predict_values for mod in self.models]
         variances = [mod.predict_variances for mod in self.models]
-        x = np.asarray(x).reshape(1, -1)
         sig1, sig2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
         moy1, moy2 = moyennes[0](x)[0][0], moyennes[1](x)[0][0]
         m = len(pareto_front)
@@ -141,35 +100,49 @@ class Criterion(object):
     def psi(a, b, µ, s):
         return s * norm.pdf((b - µ) / s) + (a - µ) * norm.cdf((b - µ) / s)
 
-    def EHVI(self, x, ref):
+    def EHVI(self, x):
         """
-        Expected hypervolume improvement of the point x for 2 objectives
+        Expected hypervolume improvement of the point x for 2 objectives.
+        If more than 2 objectives, computed using Monte-Carlo sampling instead
 
         Parameters
         ----------
         x : list
             coordinates in the design space of the point to evaluate.
-        ref : list
-            coordinates of the reference point to compute the hypervolume.
-            Here, we take 1 + the highest value in the training pool
-            for each objective
 
         Returns
         -------
         float
             Expected HVImprovement
         """
+
         x = np.asarray(x).reshape(1, -1)
+        f = Criterion._compute_pareto(self.models)
+
+        if len(self.models) > 2:
+            y = np.asarray(
+                [
+                    mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
+                    for mod in self.models
+                ]
+            )
+            if Criterion.is_dominated(y, f):
+                return 0  # the point - 3sigma is dominated, no chances to improve hv
+            MC = MonteCarlo(random_state=self.random_state)
+            q = MC.sampling(x, self.models, self.points)
+            return (
+                sum([self.hv.calc(np.vstack((f, qi))) for qi in q]) / self.points
+            )  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
+
         variances = [mod.predict_variances for mod in self.models]
         s1, s2 = variances[0](x)[0][0] ** 0.5, variances[1](x)[0][0] ** 0.5
         if s1 == 0 or s2 == 0:  # training point
             return 0
-        f = Criterion._compute_pareto(self.models)
         moyennes = [mod.predict_values for mod in self.models]
         µ1, µ2 = moyennes[0](x)[0][0], moyennes[1](x)[0][0]
         f.sort(key=lambda x: x[0])
-        f.insert(0, np.array([ref[0], -1e15]))  # 1e15 to approximate infinity
-        f.append(np.array([-1e15, ref[1]]))
+        f.insert(0, np.array([self.ref[0], -1e15]))  # 1e15 to approximate infinity
+        f.append(np.array([-1e15, self.ref[1]]))
         res1, res2 = 0, 0
         for i in range(len(f) - 1):
             res1 += (
@@ -205,21 +178,17 @@ class Criterion(object):
         y = np.asarray([moy(x)[0][0] for moy in moyennes])
         return self.hv.calc(np.vstack((pf, y)))
 
-    def WB2S(self, x, ref, s):
+    def WB2S(self, x):
         """
         Criterion WB2S multi-objective adapted from the paper "Adapated
         modeling strategy for constrained optimization with application
         to aerodynamic wing design" :
-        WB2S(x) = s*EHVI(x) - sum( µi(x) )
+        WB2S(x) = s*subcriterion(x) - transformation( µ(x) )
 
         Parameters
         ----------
         x : list
             coordinates in the design space of the point to evaluate.
-        ref : list
-            reference point to compute the hypervolume.
-        s : float
-            WB2S scaling value for EHVI in the criterion.
 
         Returns
         -------
@@ -228,10 +197,7 @@ class Criterion(object):
         x = np.asarray(x).reshape(1, -1)
         moyennes = [mod.predict_values for mod in self.models]
         µ = [moy(x)[0][0] for moy in moyennes]
-        y = self.Psi(µ)
-        if len(moyennes) == 2:
-            return s * self.EHVI(x, ref) - y
-        return s * self.EHVIMC(x) - y
+        return self.s * self.subcrit(x) - self.transfo(µ)
 
     @staticmethod
     def _compute_pareto(modeles):
