@@ -5,7 +5,7 @@
 
 ## Installation
 <code>
-  pip install smoot
+  git clone smoot
 </code>
 
 Necessary packages : <code>pymoo</code>,<code>smt</code>
@@ -26,5 +26,9 @@ given a black box function f : **x** -> **y** with **bolds** characters as vecto
 ### Utilisation
 
 Look at the Jupyter notebook in the *tutorial* folder.
+
+You will learn how to use implemented the functionnalities and options such as :
+ - The choice of the infill criterion
+ - The method to manage the constraints
 
 For additional questions, contact: robingrapin@orange.fr
