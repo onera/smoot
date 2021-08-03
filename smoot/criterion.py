@@ -31,7 +31,7 @@ class Criterion(object):
         self.subcrit = subcrit
         self.transfo = transfo
 
-    def __call__(self, x):
+    def __call__(self, x, means=None, variances=None, pareto_front=None):
         if self.name == "PI":
             return self.PI(x)
         if self.name == "EHVI":
@@ -40,6 +40,40 @@ class Criterion(object):
             return self.HV(x)
         if self.name == "WB2S":
             return self.WB2S(x)
+        if self.name == "MPI":
+            return self.MPI(x)
+
+    def MPI(self, x):
+        """
+        Minimal Porbability of Improvement
+
+        Parameters
+        ----------
+        x : list
+            coordinate in the design point to evaluate.
+
+        Returns
+        -------
+        float
+            MPI(x).
+        """
+        x = np.asarray(x).reshape(1, -1)
+
+        pf = Criterion._compute_pareto(self.models)
+        variances = [mod.predict_variances for mod in self.models]
+        etypes = [var(x)[0][0] ** 0.5 for var in variances]
+        if 0 in etypes:  # training point
+            return 0
+        moyennes = [mod.predict_values for mod in self.models]
+        moy = [m(x)[0][0] for m in moyennes]
+        probas = [
+            np.prod(
+                [norm.cdf((moy[i] - f[i]) / etypes[i]) for i in range(len(moyennes))]
+            )
+            for f in pf
+        ]
+
+        return 1 - max(probas)  # min( 1 - P )
 
     def PI(self, x):
         """
@@ -63,7 +97,8 @@ class Criterion(object):
         if len(self.models) > 2:
             y = np.asarray(
                 [
-                    mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
+                    mod.predict_values(x)[0][0]
+                    - 3 * mod.predict_variances(x)[0][0] ** 0.5
                     for mod in self.models
                 ]
             )
@@ -100,7 +135,9 @@ class Criterion(object):
     def psi(a, b, µ, s):
         return s * norm.pdf((b - µ) / s) + (a - µ) * norm.cdf((b - µ) / s)
 
-    def EHVI(self, x):
+    def EHVI(
+        self, x,
+    ):
         """
         Expected hypervolume improvement of the point x for 2 objectives.
         If more than 2 objectives, computed using Monte-Carlo sampling instead
@@ -122,7 +159,8 @@ class Criterion(object):
         if len(self.models) > 2:
             y = np.asarray(
                 [
-                    mod.predict_values(x)[0][0] - 3 * mod.predict_variances(x)[0][0]
+                    mod.predict_values(x)[0][0]
+                    - 3 * mod.predict_variances(x)[0][0] ** 0.5
                     for mod in self.models
                 ]
             )
@@ -282,10 +320,10 @@ class Criterion(object):
         return False, False  # same values
 
     @staticmethod
-    def is_dominated(x, pf):
-        """True if x is dominated by a point of pf"""
+    def is_dominated(y, pf):
+        """True if y is dominated by a point of pf"""
         for z in pf:
-            battu, _ = Criterion.dominate_min(z, x)
+            battu, _ = Criterion.dominate_min(z, y)
             if battu:
                 return True
         return False

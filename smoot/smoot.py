@@ -48,7 +48,7 @@ class MOO(SurrogateBasedApplication):
             "subcrit",
             "EHVI",
             types=str,
-            values=["PI", "EHVI"],
+            values=["PI", "MPI", "EHVI"],
             desc="subcriterion for the formula of wb2s : s*subcrit - transfo(µ)",
         )
         declare(
@@ -61,7 +61,7 @@ class MOO(SurrogateBasedApplication):
             "criterion",
             "PI",
             types=str,
-            values=["PI", "EHVI", "GA", "WB2S"],
+            values=["PI", "EHVI", "GA", "WB2S", "MPI"],
             desc="infill criterion",
         )
         declare("n_iter", 10, types=int, desc="Number of optimizer steps")
@@ -74,10 +74,7 @@ class MOO(SurrogateBasedApplication):
             desc="number of individuals for the genetic algorithm",
         )
         declare(
-            "n_gen",
-            50,
-            types=int,
-            desc="number generations for the genetic algorithm",
+            "n_gen", 50, types=int, desc="number generations for the genetic algorithm",
         )
         declare(
             "q",
@@ -87,7 +84,12 @@ class MOO(SurrogateBasedApplication):
         )
 
         declare("verbose", False, types=bool, desc="Print computation information")
-        declare("xdoe", None, types=np.ndarray, desc="Initial doe inputs")
+        declare(
+            "xdoe",
+            None,
+            types=np.ndarray,
+            desc="Initial doe inputs. DoE formats are ndarray[n_start,n_dim]",
+        )
         declare("ydoe", None, types=np.ndarray, desc="Initial doe outputs")
         declare(
             "ydoe_c", None, types=np.ndarray, desc="initial doe outputs for constraints"
@@ -112,7 +114,7 @@ class MOO(SurrogateBasedApplication):
             returning y = ndarray[ne,ny]
             where y[i][j] = fj(xi).
             If fun has only one objective, y = ndarray[ne, 1]
-
+            
         Returns
         -------
         self.result.X : ndarray[int,n_var]
@@ -124,7 +126,7 @@ class MOO(SurrogateBasedApplication):
             try:
                 self.options["xlimits"] = fun.xlimits
             except AttributeError:  # if fun doesn't have "xlimits" attribute
-                print("Error : No bounds given")
+                raise AttributeError("Error : No bounds given")
                 return
 
         self.seed = np.random.RandomState(self.options["random_state"])
@@ -251,7 +253,7 @@ class MOO(SurrogateBasedApplication):
                     if self.options["surrogate"] == "KRG"
                     else KPLS(print_global=False)
                 )
-                t.set_training_values(xt, yt_const[iny])
+                t.set_training_values(xt, yt_const[:, iny])
                 t.train()
                 self.const_modeles.append(t)
 
@@ -292,7 +294,7 @@ class MOO(SurrogateBasedApplication):
 
     def _find_best_point(self, criter):
         """
-        Selects the best point to refine the model according to
+        Selects the best point to refine the model according to 
         the chosen infill criterion.
 
         Returns
@@ -340,11 +342,15 @@ class MOO(SurrogateBasedApplication):
 
         if criter == "PI":
             PI = Criterion(
-                "PI",
-                self.modeles,
-                random_state=self.options["random_state"],
+                "PI", self.modeles, random_state=self.options["random_state"],
             )
             self.obj_k = lambda x: -PI(x)
+
+        if criter == "MPI":
+            MPI = Criterion(
+                "MPI", self.modeles, random_state=self.options["random_state"]
+            )
+            self.obj_k = lambda x: -MPI(x)
 
         if criter == "EHVI":
             ydata = np.transpose(

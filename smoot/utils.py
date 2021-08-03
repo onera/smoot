@@ -24,11 +24,20 @@ def write_increase_iter(
     reference=None,
     n_max=10,
     runs=5,
-    paraMOO={"pop_size": 50},
+    paraMOO={},
     verbose=True,
-    indic="igd+",
+    indic="igd",
     start_seed=0,
-    criterions=["PI", "EHVI", "GA", "WB2S"],
+    criterions=["PI", "EHVI", "GA", "WB2S", "MPI"],
+    subcrits=["EHVI", "EHVI", "EHVI", "EHVI", "EHVI"],
+    transfos=[
+        lambda l: sum(l),
+        lambda l: sum(l),
+        lambda l: sum(l),
+        lambda l: sum(l),
+        lambda l: sum(l),
+    ],
+    titles=None,
 ):
     """
     write a dictionnary with the results of the runs for each criterion in path.
@@ -37,8 +46,8 @@ def write_increase_iter(
     ----------
     fun : function
         function to optimize.
-    path : path to store datas
-        DESCRIPTION.
+    path : str
+        path to store datas.
     xlimits : ndarray[n_var,2], if None then it takes fun.xlimits
         bounds limits of fun, optional
     reference : ndarray[ n_points, n_obj], optional
@@ -51,6 +60,10 @@ def write_increase_iter(
         Non-default MOO parameters for the optimization. The default is {"pop_size" : 50}.
     verbose : Bool, optional
         If informations are given during the process. The default is True.
+    subcrits : list of str
+        Subcriterions for wb2S
+    transfos : list of function
+        Transformations for wb2S
     """
     if xlimits is None:
         xlimits = fun.xlimits
@@ -60,59 +73,68 @@ def write_increase_iter(
         igd = get_performance_indicator(indic, ref_point=reference)
     else:
         igd = get_performance_indicator(indic, reference)
+    if titles is None:
+        titles = criterions
     fichier = open(path, "wb")
     mo = MOO(xlimits=xlimits)
     for clef, val in paraMOO.items():
         mo.options._dict[clef] = val
 
-    def obj_profile(criterion="PI", n=n_max, seed=3):
+    def obj_profile(
+        criterion="PI", n=n_max, seed=3, subcrit="EHVI", transfo=lambda l: sum(l)
+    ):
         """
         Intermediate function to run for a specific criterion 1 run
         of MOO, giving the resulting front at each iteration
         """
         fronts = []
+        times = []
         sampling = LHS(xlimits=xlimits, random_state=seed)
         xdoe = sampling(mo.options["n_start"])
         mo.options["criterion"] = criterion
         mo.options["random_state"] = seed
         mo.options["xdoe"] = xdoe
         mo.options["n_iter"] = 0
+        mo.options["subcrit"] = subcrit
+        mo.options["transfo"] = transfo
         mo.optimize(fun)
         fronts.append(mo.result.F)
         mo.options["n_iter"] = 1
         for i in range(1, n):
+            stime = time.time()
             mo.options[
                 "xdoe"
             ] = xdoe  # the last doe is used for the new iteration to add a point
-            mo.optimize(fun)
-            fronts.append(mo.result.F)
+            X, _ = mo.optimize(fun)
+            fronts.append(fun(X))
+            times.append(time.time() - stime)
             xdoe = mo.modeles[0].training_points[None][0][0]
         dists = [igd.calc(fr) for fr in fronts]  # - to have the growth as goal
+
         if verbose:
             print("xdoe", xdoe)
             # print("distances",dists)
-        return dists, fronts
+        return dists, fronts, times
 
-    dico_res = {crit: {} for crit in criterions}
+    dico_res = {crit: {} for crit in titles}
     # plots_moy = []
-    t_start = time.time()
-    for crit in criterions:
+    for i, crit in enumerate(criterions):
         fronts_pareto = []
         distances = []
+        temps = []
         if verbose:
-            print("criterion ", crit)
+            print("criterion ", titles[i])
         for graine in range(start_seed, start_seed + runs):
             if verbose:
                 print("seed", graine)
-            di, fr = obj_profile(crit, n=n_max, seed=graine)
+            di, fr, tmps = obj_profile(
+                crit, n=n_max, seed=graine, subcrit=subcrits[i], transfo=transfos[i]
+            )
             fronts_pareto.append(fr)
             distances.append(di)
-        t_moy = (time.time() - t_start) / runs
-        if verbose:
-            print("average time", crit, ":", t_moy)
-        t_start = time.time()
-        dico_res[crit] = {
-            "time": t_moy,
+            temps.append(tmps)
+        dico_res[titles[i]] = {
+            "time": temps.copy(),
             "fronts": fronts_pareto.copy(),
             "dists": distances.copy(),
         }
