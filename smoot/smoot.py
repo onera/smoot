@@ -36,7 +36,7 @@ class MOO(SurrogateBasedApplication):
             "const",
             [],
             types=list,
-            desc="constraints of the problem, should be <=0 constraints, taking x = ndarray[ne,nx]",
+            desc="constraints of the problem, should be <=0 constraints, taking x = ndarray[ne,nx], out ndarray[ne,1] each",
         )
         declare(
             "penal",
@@ -157,16 +157,17 @@ class MOO(SurrogateBasedApplication):
 
             # find next best x-coord point to evaluate
             new_x, _ = self._find_best_point(self.options["criterion"])
-            new_y = fun(np.array([new_x]))
+            new_x = np.array([new_x])
+            new_y = fun(new_x)
 
             # update model with the new point
             y_data = np.atleast_2d(np.append(y_data, new_y, axis=0))
-            x_data = np.atleast_2d(np.append(x_data, np.array([new_x]), axis=0))
+            x_data = np.atleast_2d(np.append(x_data, new_x, axis=0))
 
             # update the constraints
-            for i in range(self.n_const):
-                new_y_c_i = np.array([self.options["const"][i](np.array([new_x]))])[0]
-                y_data_c[i] = np.append(y_data_c[i], new_y_c_i, axis=0)
+            if self.n_const > 0:
+                new_y_c = np.transpose(np.array([self.options["const"][i](new_x)[0] for i in range(self.n_const)]))
+                y_data_c = np.atleast_2d(np.append(y_data_c, new_y_c, axis=0))
 
             self.modelize(x_data, y_data, y_data_c)
 
