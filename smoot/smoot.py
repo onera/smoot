@@ -74,7 +74,10 @@ class MOO(SurrogateBasedApplication):
             desc="number of individuals for the genetic algorithm",
         )
         declare(
-            "n_gen", 50, types=int, desc="number generations for the genetic algorithm",
+            "n_gen",
+            50,
+            types=int,
+            desc="number generations for the genetic algorithm",
         )
         declare(
             "q",
@@ -114,7 +117,7 @@ class MOO(SurrogateBasedApplication):
             returning y = ndarray[ne,ny]
             where y[i][j] = fj(xi).
             If fun has only one objective, y = ndarray[ne, 1]
-            
+
         Returns
         -------
         self.result.X : ndarray[int,n_var]
@@ -166,7 +169,14 @@ class MOO(SurrogateBasedApplication):
 
             # update the constraints
             if self.n_const > 0:
-                new_y_c = np.transpose(np.array([self.options["const"][i](new_x)[0] for i in range(self.n_const)]))
+                new_y_c = np.transpose(
+                    np.array(
+                        [
+                            self.options["const"][i](new_x)[0]
+                            for i in range(self.n_const)
+                        ]
+                    )
+                )
                 y_data_c = np.atleast_2d(np.append(y_data_c, new_y_c, axis=0))
 
             self.modelize(x_data, y_data, y_data_c)
@@ -295,7 +305,7 @@ class MOO(SurrogateBasedApplication):
 
     def _find_best_point(self, criter):
         """
-        Selects the best point to refine the model according to 
+        Selects the best point to refine the model according to
         the chosen infill criterion.
 
         Returns
@@ -343,7 +353,9 @@ class MOO(SurrogateBasedApplication):
 
         if criter == "PI":
             PI = Criterion(
-                "PI", self.modeles, random_state=self.options["random_state"],
+                "PI",
+                self.modeles,
+                random_state=self.options["random_state"],
             )
             self.obj_k = lambda x: -PI(x)
 
