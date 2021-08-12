@@ -11,51 +11,18 @@ warnings.filterwarnings("ignore")
 import time
 import unittest
 import numpy as np
-import matplotlib
-
-matplotlib.use("Agg")
 
 from smoot.smoot import MOO
 from smoot.zdt import ZDT
 
 from smt.sampling_methods import LHS
-from smt.problems import Branin, Rosenbrock
+from smt.problems import Branin
 from smt.utils.sm_test_case import SMTestCase
 
 from pymoo.factory import get_performance_indicator
 
 
 class TestMOO(SMTestCase):
-
-    plot = None
-
-    def test_rosenbrock_2Dto3D(self):
-        n_iter = 15
-        fun1 = Rosenbrock(ndim=2)
-        fun2 = Rosenbrock(ndim=2)
-        fun = lambda x: np.transpose([fun1(x), fun1(x), fun2(x)])[0]
-        xlimits = fun1.xlimits
-        criterion = "PI"
-
-        mo = MOO(
-            n_iter=n_iter,
-            criterion=criterion,
-            xlimits=xlimits,
-            pop_size=100,
-            n_gen=100,
-            verbose=False,
-            random_state=42,
-        )
-        print("running test rosenbrock 2D -> 3D with", criterion)
-        start = time.time()
-        mo.optimize(fun=fun)
-        x_opt, y_opt = mo.result.X[0], mo.result.F[0]
-        print("x_opt :", x_opt)
-        print("y_opt :", y_opt)
-        print("seconds taken Rosen : ", time.time() - start, "\n")
-        self.assertTrue(np.allclose([1, 1], x_opt, rtol=0.5))
-        self.assertTrue(np.allclose([[0, 0, 0]], y_opt, rtol=1))
-
     def test_Branin(self):
         n_iter = 10
         fun = Branin()
@@ -89,16 +56,15 @@ class TestMOO(SMTestCase):
             criterion=criterion,
             random_state=1,
         )
-        print("running test ZDT", type, ":", ndim, "D -> 2D,", criterion)
+        print("running test ZDT", type, ": " + str(ndim) + "D -> 2D,", criterion)
         start = time.time()
         mo.optimize(fun=fun)
         print("seconds taken :", time.time() - start)
         exact = fun.pareto(random_state=1)[1]
         gd = get_performance_indicator("gd", exact)
-        print(mo.result.F.shape)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 2)
+        self.assertLess(dist, 1)
 
     def test_zdt_2(self):
         self.test_zdt(type=2, criterion="WB2S")
@@ -115,7 +81,7 @@ class TestMOO(SMTestCase):
         sampling = LHS(xlimits=xlimits, random_state=42)
         xt = sampling(20)  # generating data as if it were known data
         yt = fun(xt)  # idem : "known" datapoint for training
-        mo = MOO(n_iter=10, criterion="PI", xdoe=xt, ydoe=yt, random_state=42)
+        mo = MOO(n_iter=10, criterion="MPI", xdoe=xt, ydoe=yt, random_state=42)
         print("running test ZDT with known training points")
         start = time.time()
         mo.optimize(fun=fun)
@@ -124,7 +90,7 @@ class TestMOO(SMTestCase):
         gd = get_performance_indicator("gd", exact)
         dist = gd.calc(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
-        self.assertLess(dist, 2)
+        self.assertLess(dist, 1)
 
 
 if __name__ == "__main__":
