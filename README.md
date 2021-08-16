@@ -5,7 +5,7 @@
 
 ## Installation
 <code>
-  git install smoot
+  git clone smoot
 </code>
 
 Necessary packages : <code>pymoo</code>,<code>smt</code>
@@ -13,7 +13,7 @@ Necessary packages : <code>pymoo</code>,<code>smt</code>
 ## Description
 
 This surrogate based multi-objective Bayesian optimizer has been created to see the performance of the WB2S criterion adapted to multi-objective problems.
-given a black box function f : **x** -> **y** with **bolds** characters as vectors, <code>smoot</code> will give an accurate approximation of the optima with few calls of f.
+Given a black box function f : **x** -> **y** with **bolds** characters as vectors, <code>smoot</code> will give an accurate approximation of the optima with few calls of f.
 
 ![modeli1](ressources/f1_avant.png)
 ![modeli2](ressources/f2_avant.png)
@@ -26,5 +26,9 @@ given a black box function f : **x** -> **y** with **bolds** characters as vecto
 ### Utilisation
 
 Look at the Jupyter notebook in the *tutorial* folder.
+
+You will learn how to use implemented the functionnalities and options such as :
+ - The choice of the infill criterion
+ - The method to manage the constraints
 
 For additional questions, contact: robingrapin@orange.fr
