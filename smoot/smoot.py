@@ -7,8 +7,8 @@ Created on Wed Mar 31 14:08:54 2021
 
 import numpy as np
 
-from pymoo.algorithms.nsga2 import NSGA2
-from pymoo.model.problem import Problem
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.problem import Problem, ElementwiseProblem
 from pymoo.optimize import minimize
 from pymoo.factory import get_performance_indicator
 
@@ -277,7 +277,7 @@ class MOO(SurrogateBasedApplication):
         MyProblem : pymoo.problem
         """
 
-        class MyProblem(Problem):
+        class MyProblem(ElementwiseProblem):#!!!
             def __init__(self):
                 super().__init__(
                     n_var=n_var,
@@ -285,7 +285,7 @@ class MOO(SurrogateBasedApplication):
                     n_constr=n_const,
                     xl=np.asarray([i[0] for i in xbounds]),
                     xu=np.asarray([i[1] for i in xbounds]),
-                    elementwise_evaluation=True,
+                    #elementwise_evaluation=True,#!!!
                 )
 
             def _evaluate(self, x, out, *args, **kwargs):
