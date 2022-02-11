@@ -5,7 +5,7 @@
 
 ## Installation
 <code>
-  git clone smoot
+  pip install smoot
 </code>
 
 Necessary packages : <code>pymoo</code>,<code>smt</code>
