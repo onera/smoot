@@ -5,7 +5,7 @@
 
 ## Installation
 <code>
-  git clone git@github.com:RobinGRAPIN/smoot.git
+  git clone smoot
 </code>
 
 Necessary packages : <code>pymoo</code>,<code>smt</code>
