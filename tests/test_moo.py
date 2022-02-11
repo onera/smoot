@@ -29,10 +29,7 @@ class TestMOO(SMTestCase):
         criterion = "EI"
 
         mo = MOO(
-            n_iter=n_iter,
-            criterion=criterion,
-            xlimits=fun.xlimits,
-            random_state=42,
+            n_iter=n_iter, criterion=criterion, xlimits=fun.xlimits, random_state=42,
         )
         print("running test Branin 2D -> 1D")
         start = time.time()
@@ -51,11 +48,7 @@ class TestMOO(SMTestCase):
     def test_zdt(self, type=1, criterion="EHVI", ndim=2, n_iter=10):
         fun = ZDT(type=type, ndim=ndim)
 
-        mo = MOO(
-            n_iter=n_iter,
-            criterion=criterion,
-            random_state=1,
-        )
+        mo = MOO(n_iter=n_iter, criterion=criterion, random_state=1,)
         print("running test ZDT", type, ": " + str(ndim) + "D -> 2D,", criterion)
         start = time.time()
         mo.optimize(fun=fun)

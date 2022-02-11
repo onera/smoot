@@ -74,10 +74,7 @@ class MOO(SurrogateBasedApplication):
             desc="number of individuals for the genetic algorithm",
         )
         declare(
-            "n_gen",
-            50,
-            types=int,
-            desc="number generations for the genetic algorithm",
+            "n_gen", 50, types=int, desc="number generations for the genetic algorithm",
         )
         declare(
             "q",
@@ -277,7 +274,7 @@ class MOO(SurrogateBasedApplication):
         MyProblem : pymoo.problem
         """
 
-        class MyProblem(ElementwiseProblem):#!!!
+        class MyProblem(ElementwiseProblem):  #!!!
             def __init__(self):
                 super().__init__(
                     n_var=n_var,
@@ -285,7 +282,7 @@ class MOO(SurrogateBasedApplication):
                     n_constr=n_const,
                     xl=np.asarray([i[0] for i in xbounds]),
                     xu=np.asarray([i[1] for i in xbounds]),
-                    #elementwise_evaluation=True,#!!!
+                    # elementwise_evaluation=True,#!!!
                 )
 
             def _evaluate(self, x, out, *args, **kwargs):
@@ -353,9 +350,7 @@ class MOO(SurrogateBasedApplication):
 
         if criter == "PI":
             PI = Criterion(
-                "PI",
-                self.modeles,
-                random_state=self.options["random_state"],
+                "PI", self.modeles, random_state=self.options["random_state"],
             )
             self.obj_k = lambda x: -PI(x)
 
