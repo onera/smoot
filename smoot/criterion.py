@@ -258,7 +258,7 @@ class Criterion(object):
         Parameters
         ----------
         Y : list of arrays
-            liste of the points to compare.
+            list of the points to compare.
 
         Returns
         -------
