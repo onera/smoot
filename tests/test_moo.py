@@ -62,7 +62,7 @@ class TestMOO(SMTestCase):
         print("seconds taken :", time.time() - start)
         exact = fun.pareto(random_state=1)[1]
         gd = get_performance_indicator("gd", exact)
-        dist = gd.calc(mo.result.F)
+        dist = gd.do(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
         self.assertLess(dist, 1)
 
@@ -88,7 +88,7 @@ class TestMOO(SMTestCase):
         print("seconds taken :", time.time() - start)
         exact = fun.pareto(random_state=1)[1]
         gd = get_performance_indicator("gd", exact)
-        dist = gd.calc(mo.result.F)
+        dist = gd.do(mo.result.F)
         print("distance to the exact Pareto front", dist, "\n")
         self.assertLess(dist, 1)
 
