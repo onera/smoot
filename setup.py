@@ -5,8 +5,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="smoot",
-    version="0.0.2",
-    author="Nathalie Bartoli, Rémi Lafage",
+    version="0.1.0",
+    author="Nathalie Bartoli, Robin Grapin, Rémi Lafage",
     description="Surrogate based multi-objective optimization tool",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -19,5 +19,5 @@ setuptools.setup(
     ],
     packages=["smoot"],
     python_requires=">=3.6",
-    install_requires=["smt", "pymoo"],
+    install_requires=["smt", "pymoo>=0.5.0"],
 )
