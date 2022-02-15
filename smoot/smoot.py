@@ -500,7 +500,7 @@ class MOO(SurrogateBasedApplication):
 
         """
         from smt.applications import EGO
-        from pymoo.model.algorithm import Algorithm
+        from pymoo.core.algorithm import Algorithm
 
         ego = EGO(
             xdoe=xdoe,
