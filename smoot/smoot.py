@@ -74,7 +74,10 @@ class MOO(SurrogateBasedApplication):
             desc="number of individuals for the genetic algorithm",
         )
         declare(
-            "n_gen", 50, types=int, desc="number generations for the genetic algorithm",
+            "n_gen",
+            50,
+            types=int,
+            desc="number generations for the genetic algorithm",
         )
         declare(
             "q",
@@ -350,7 +353,9 @@ class MOO(SurrogateBasedApplication):
 
         if criter == "PI":
             PI = Criterion(
-                "PI", self.modeles, random_state=self.options["random_state"],
+                "PI",
+                self.modeles,
+                random_state=self.options["random_state"],
             )
             self.obj_k = lambda x: -PI(x)
 

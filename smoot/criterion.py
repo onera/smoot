@@ -136,7 +136,8 @@ class Criterion(object):
         return s * norm.pdf((b - µ) / s) + (a - µ) * norm.cdf((b - µ) / s)
 
     def EHVI(
-        self, x,
+        self,
+        x,
     ):
         """
         Expected hypervolume improvement of the point x for 2 objectives.
