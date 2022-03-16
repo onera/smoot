@@ -169,7 +169,7 @@ class MOO(SurrogateBasedApplication):
 
             # update the constraints
             if self.n_const > 0:
-                new_y_c = np.transpose(
+                new_y_c = np.atleast_2d(
                     np.array(
                         [
                             self.options["const"][i](new_x)[0]
@@ -229,7 +229,7 @@ class MOO(SurrogateBasedApplication):
         if yt is None:
             yt = fun(xt)
         if yc is None and self.n_const > 0:
-            yc = [np.array(con(xt)) for con in self.options["const"]]
+            yc = np.array([np.array(con(xt)) for con in self.options["const"]]).T#!!!
         return xt, yt, yc
 
     def modelize(self, xt, yt, yt_const=None):
@@ -277,7 +277,7 @@ class MOO(SurrogateBasedApplication):
         MyProblem : pymoo.problem
         """
 
-        class MyProblem(ElementwiseProblem):  #!!!
+        class MyProblem(ElementwiseProblem):
             def __init__(self):
                 super().__init__(
                     n_var=n_var,
@@ -285,7 +285,6 @@ class MOO(SurrogateBasedApplication):
                     n_constr=n_const,
                     xl=np.asarray([i[0] for i in xbounds]),
                     xu=np.asarray([i[1] for i in xbounds]),
-                    # elementwise_evaluation=True,#!!!
                 )
 
             def _evaluate(self, x, out, *args, **kwargs):
