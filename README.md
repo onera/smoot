@@ -4,8 +4,15 @@
 # smoot
 
 ## Installation
+
+ONERA version :
 <code>
-  pip install smoot
+  pip install smoot 
+</code>
+
+This version with last updates :
+<code>
+  git clone git@github.com:RobinGRAPIN/smoot.git
 </code>
 
 Necessary packages : <code>pymoo</code>,<code>smt</code>
