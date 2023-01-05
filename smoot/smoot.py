@@ -8,9 +8,9 @@ Created on Wed Mar 31 14:08:54 2021
 import numpy as np
 
 from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.core.problem import Problem, ElementwiseProblem
+from pymoo.core.problem import ElementwiseProblem
 from pymoo.optimize import minimize
-from pymoo.factory import get_performance_indicator
+from pymoo.indicators.hv import HV
 
 from smt.applications.application import SurrogateBasedApplication
 from smt.surrogate_models import KRG, KPLS
@@ -369,7 +369,7 @@ class MOO(SurrogateBasedApplication):
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
             ref = [ydata[:, i].max() + 1 for i in range(self.ny)]  # nadir +1
-            hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+            hv = HV(ref_point=np.asarray(ref))
             EHVI = Criterion(
                 "EHVI",
                 self.modeles,
@@ -400,7 +400,7 @@ class MOO(SurrogateBasedApplication):
                     )
                 )[0]
                 ref = [ydata[:, i].max() + 1 for i in range(self.ny)]  # nadir +1
-                hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+                hv = HV(ref_point=np.asarray(ref))
             else:
                 ref, hv = None, None
             subcriterion = Criterion(
