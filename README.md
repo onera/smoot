@@ -10,12 +10,7 @@ ONERA version :
   pip install smoot 
 </code>
 
-This version with last updates :
-<code>
-  git clone git@github.com:RobinGRAPIN/smoot.git
-</code>
-
-Necessary packages : <code>pymoo</code>,<code>smt</code>
+Required packages : <code>pymoo</code>,<code>smt</code>
 
 ## Description
 
@@ -30,7 +25,7 @@ Given a black box function f : **x** -> **y** with **bolds** characters as vecto
 ![modeli12](ressources/f1_apres.png)
 ![modeli22](ressources/f2_apres.png)
 
-### Utilisation
+### Usage
 
 Look at the Jupyter notebook in the *tutorial* folder.
 
