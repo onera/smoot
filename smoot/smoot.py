@@ -229,7 +229,7 @@ class MOO(SurrogateBasedApplication):
         if yt is None:
             yt = fun(xt)
         if yc is None and self.n_const > 0:
-            yc = np.array([np.array(con(xt)) for con in self.options["const"]]).T#!!!
+            yc = np.array([np.array(con(xt)) for con in self.options["const"]]).T  #!!!
         return xt, yt, yc
 
     def modelize(self, xt, yt, yt_const=None):
