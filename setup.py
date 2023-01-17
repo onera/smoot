@@ -19,5 +19,5 @@ setuptools.setup(
     ],
     packages=["smoot"],
     python_requires=">=3.7",
-    install_requires=["smt", "pymoo>=0.6.0"]
+    install_requires=["smt", "pymoo>=0.6.0"],
 )
