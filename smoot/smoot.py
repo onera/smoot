@@ -8,9 +8,9 @@ Created on Wed Mar 31 14:08:54 2021
 import numpy as np
 
 from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.core.problem import Problem, ElementwiseProblem
+from pymoo.core.problem import ElementwiseProblem
 from pymoo.optimize import minimize
-from pymoo.factory import get_performance_indicator
+from pymoo.indicators.hv import HV
 
 from smt.applications.application import SurrogateBasedApplication
 from smt.surrogate_models import KRG, KPLS
@@ -169,7 +169,7 @@ class MOO(SurrogateBasedApplication):
 
             # update the constraints
             if self.n_const > 0:
-                new_y_c = np.transpose(
+                new_y_c = np.atleast_2d(
                     np.array(
                         [
                             self.options["const"][i](new_x)[0]
@@ -229,7 +229,7 @@ class MOO(SurrogateBasedApplication):
         if yt is None:
             yt = fun(xt)
         if yc is None and self.n_const > 0:
-            yc = [np.array(con(xt)) for con in self.options["const"]]
+            yc = np.array([np.array(con(xt)) for con in self.options["const"]]).T  #!!!
         return xt, yt, yc
 
     def modelize(self, xt, yt, yt_const=None):
@@ -277,7 +277,7 @@ class MOO(SurrogateBasedApplication):
         MyProblem : pymoo.problem
         """
 
-        class MyProblem(ElementwiseProblem):  #!!!
+        class MyProblem(ElementwiseProblem):
             def __init__(self):
                 super().__init__(
                     n_var=n_var,
@@ -285,7 +285,6 @@ class MOO(SurrogateBasedApplication):
                     n_constr=n_const,
                     xl=np.asarray([i[0] for i in xbounds]),
                     xu=np.asarray([i[1] for i in xbounds]),
-                    # elementwise_evaluation=True,#!!!
                 )
 
             def _evaluate(self, x, out, *args, **kwargs):
@@ -370,7 +369,7 @@ class MOO(SurrogateBasedApplication):
                 np.asarray([mod.training_points[None][0][1] for mod in self.modeles])
             )[0]
             ref = [ydata[:, i].max() + 1 for i in range(self.ny)]  # nadir +1
-            hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+            hv = HV(ref_point=np.asarray(ref))
             EHVI = Criterion(
                 "EHVI",
                 self.modeles,
@@ -401,7 +400,7 @@ class MOO(SurrogateBasedApplication):
                     )
                 )[0]
                 ref = [ydata[:, i].max() + 1 for i in range(self.ny)]  # nadir +1
-                hv = get_performance_indicator("hv", ref_point=np.asarray(ref))
+                hv = HV(ref_point=np.asarray(ref))
             else:
                 ref, hv = None, None
             subcriterion = Criterion(

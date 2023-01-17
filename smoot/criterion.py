@@ -170,7 +170,7 @@ class Criterion(object):
             MC = MonteCarlo(random_state=self.random_state)
             q = MC.sampling(x, self.models, self.points)
             return (
-                sum([self.hv.calc(np.vstack((f, qi))) for qi in q]) / self.points
+                sum([self.hv(np.vstack((f, qi))) for qi in q]) / self.points
             )  # maybe we can remove the division by self.points as there is the same amount of points for each call? It's just for scale here
 
         variances = [mod.predict_variances for mod in self.models]
@@ -215,7 +215,7 @@ class Criterion(object):
         pf = Criterion._compute_pareto(self.models)
         moyennes = [mod.predict_values for mod in self.models]
         y = np.asarray([moy(x)[0][0] for moy in moyennes])
-        return self.hv.calc(np.vstack((pf, y)))
+        return self.hv(np.vstack((pf, y)))
 
     def WB2S(self, x):
         """

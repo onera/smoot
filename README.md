@@ -4,8 +4,10 @@
 # smoot
 
 ## Installation
+
+ONERA version :
 <code>
-  pip install smoot
+  pip install smoot 
 </code>
 
 Required packages : <code>pymoo</code>,<code>smt</code>
